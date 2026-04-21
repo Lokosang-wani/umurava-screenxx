@@ -1,313 +1,131 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import Navbar from "@/components/navbar";
+import { fetchPublishedJobById, type JobRow } from "@/lib/hiring-data";
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { useAuth } from "@/lib/auth-context";
-import {
-  fetchOwnCandidateProfile,
-  fetchOwnProfile,
-  fetchPublishedJobById,
-  submitApplication,
-  updateOwnProfile,
-  uploadCandidateCv,
-  upsertCandidateProfile,
-  type CandidateProfileRow,
-  type JobRow,
-} from "@/lib/hiring-data";
 
 export default function JobDetailsPage() {
-  const params = useParams<{ id: string }>();
-  const { user } = useAuth();
-  const jobId = params?.id;
-  const hasValidJobId = typeof jobId === "string" && jobId.length > 0;
+  const params = useParams();
+  const router = useRouter();
   const [job, setJob] = useState<JobRow | null>(null);
-  const [candidateProfile, setCandidateProfile] =
-    useState<CandidateProfileRow | null>(null);
-  const [loading, setLoading] = useState(hasValidJobId);
-  const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [age, setAge] = useState("");
-  const [address, setAddress] = useState("");
-  const [cvText, setCvText] = useState("");
-  const [cvFile, setCvFile] = useState<File | null>(null);
 
   useEffect(() => {
-    if (!hasValidJobId) {
-      return;
-    }
+    const jobId = params.id as string;
+    if (!jobId) return;
 
-    fetchPublishedJobById(jobId)
-      .then((jobData) => {
-        setJob(jobData);
-      })
-      .catch((loadError: unknown) => {
-        setError(
-          loadError instanceof Error ? loadError.message : "Failed to load job",
-        );
-      })
-      .finally(() => {
+    const loadJob = async () => {
+      try {
+        const data = await fetchPublishedJobById(jobId);
+        if (!data) {
+          setError("Job position not found.");
+        } else {
+          setJob(data);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load job details");
+      } finally {
         setLoading(false);
-      });
-  }, [hasValidJobId, jobId]);
+      }
+    };
 
-  useEffect(() => {
-    if (!user) {
-      return;
-    }
+    loadJob();
+  }, [params.id]);
 
-    Promise.all([
-      fetchOwnProfile(user.id).catch(() => null),
-      fetchOwnCandidateProfile(user.id).catch(() => null),
-    ]).then(([profileData, candidateProfileData]) => {
-      setCandidateProfile(candidateProfileData);
-      setFullName(profileData?.full_name ?? "");
-      setAge(candidateProfileData?.age?.toString() ?? "");
-      setAddress(candidateProfileData?.address ?? "");
-      setCvText(candidateProfileData?.default_cv_text ?? "");
-    });
-  }, [user]);
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f7f9fc]">
+        <Navbar />
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="animate-spin w-10 h-10 border-4 border-[#2B74F0] border-t-transparent rounded-full" />
+        </div>
+      </div>
+    );
+  }
 
-  const handleApply = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setError("");
-    setSuccessMessage("");
-
-    if (!user) {
-      setError("Please sign in as a candidate before applying.");
-      return;
-    }
-
-    if (!job) {
-      setError("Job details are not available.");
-      return;
-    }
-
-    if (!fullName.trim()) {
-      setError("Please enter your name.");
-      return;
-    }
-
-    if (!cvText.trim() && !cvFile) {
-      setError("Paste your CV text or upload a PDF before applying.");
-      return;
-    }
-
-    setSubmitting(true);
-
-    try {
-      await updateOwnProfile({
-        userId: user.id,
-        fullName: fullName.trim(),
-      });
-
-      const cvFileUrl =
-        cvFile != null ? await uploadCandidateCv(user.id, cvFile) : null;
-
-      const savedCandidateProfile = await upsertCandidateProfile({
-        userId: user.id,
-        age: age ? Number(age) : null,
-        address: address.trim() || null,
-        defaultCvText: cvText.trim() || null,
-        defaultCvFileUrl: cvFileUrl,
-      });
-
-      await submitApplication({
-        candidateProfileId: savedCandidateProfile.id,
-        jobId: job.id,
-        cvText: cvText.trim() || null,
-        cvFileUrl,
-      });
-
-      setCandidateProfile(savedCandidateProfile);
-      setSuccessMessage(
-        "Application received. You will be notified when a hiring decision is made.",
-      );
-    } catch (applyError) {
-      setError(
-        applyError instanceof Error
-          ? applyError.message
-          : "Failed to submit application",
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const authRedirect = `/candidate/login?redirectTo=${encodeURIComponent(
-    `/jobs/${params?.id ?? ""}`,
-  )}`;
+  if (error || !job) {
+    return (
+      <div className="min-h-screen bg-[#f7f9fc]">
+        <Navbar />
+        <div className="mx-auto max-w-3xl pt-32 px-4 text-center">
+          <div className="bg-white p-12 rounded-3xl shadow-sm ring-1 ring-black/5">
+            <h2 className="text-2xl font-bold text-slate-900 mb-4">Oops!</h2>
+            <p className="text-slate-500 mb-8">{error || "This job may no longer be available."}</p>
+            <Link href="/" className="bg-[#2B74F0] text-white px-6 py-3 rounded-xl font-semibold">
+              Back to Job Board
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <main className="min-h-screen bg-[#f4f8ff] px-6 py-10">
-      <div className="mx-auto grid w-full max-w-6xl gap-8 lg:grid-cols-[1.15fr_0.85fr]">
-        <section className="rounded-[2rem] bg-white p-8 shadow-sm ring-1 ring-black/5">
-          <Link
-            href="/jobs"
-            className="inline-flex rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-[#2B74F0] hover:text-[#2B74F0]"
-          >
-            Back to jobs
-          </Link>
+    <div className="min-h-screen bg-[#f7f9fc]">
+      <Navbar />
 
-          {loading ? (
-            <p className="mt-6 text-sm text-slate-500">Loading job...</p>
-          ) : !hasValidJobId ? (
-            <p className="mt-6 rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-700">
-              Job not found.
-            </p>
-          ) : error && !job ? (
-            <p className="mt-6 rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-700">
-              {error}
-            </p>
-          ) : job ? (
-            <>
-              <p className="mt-8 text-sm font-semibold uppercase tracking-[0.18em] text-[#2B74F0]">
-                Published Role
-              </p>
-              <h1 className="mt-3 text-4xl font-bold text-slate-900">
-                {job.title}
-              </h1>
-              <div className="mt-8 rounded-[1.5rem] bg-slate-50 p-6 text-sm leading-7 text-slate-600 whitespace-pre-wrap">
-                {job.description}
+      <main className="pt-24 pb-16 px-4 md:px-8">
+        <div className="mx-auto max-w-4xl">
+          {/* Header */}
+          <div className="bg-white p-8 rounded-3xl shadow-sm ring-1 ring-black/5 mb-8">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div>
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#2B74F0] bg-blue-50 px-3 py-1 rounded-full text-center">
+                    Full-time
+                  </span>
+                  <span className="text-xs text-slate-400">
+                    Posted on {new Date(job.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+                <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 leading-tight">
+                  {job.title}
+                </h1>
               </div>
-            </>
-          ) : null}
-        </section>
+              <Link
+                href={`/jobs/${job.id}/apply`}
+                className="bg-[#2B74F0] text-white px-8 py-4 rounded-2xl font-bold hover:bg-[#1e57d4] transition shadow-lg shadow-blue-500/20 text-center"
+              >
+                Apply for this Role
+              </Link>
+            </div>
+          </div>
 
-        <section className="rounded-[2rem] bg-white p-8 shadow-sm ring-1 ring-black/5">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2B74F0]">
-            Apply Now
-          </p>
-          <h2 className="mt-3 text-2xl font-bold text-slate-900">
-            Submit your application
-          </h2>
-          <p className="mt-2 text-sm text-slate-500">
-            Add your details, paste your CV, or upload a PDF.
-          </p>
+          {/* Description */}
+          <div className="bg-white p-8 md:p-12 rounded-3xl shadow-sm ring-1 ring-black/5">
+            <h2 className="text-xl font-bold text-slate-900 mb-6 border-b border-slate-100 pb-4">
+              Job Description
+            </h2>
+            <div className="prose prose-slate max-w-none text-slate-600 leading-relaxed whitespace-pre-wrap">
+              {job.description}
+            </div>
 
-          {!user ? (
-            <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
-              Sign in as a candidate to apply.
-              <div className="mt-4 flex flex-wrap gap-3">
+            <div className="mt-12 pt-8 border-t border-slate-100 flex flex-col gap-6">
+              <h3 className="font-bold text-slate-900">Interested in this position?</h3>
+              <p className="text-sm text-slate-500">
+                Submit your application and our AI recruiter will analyze your profile against the job requirements instantly.
+              </p>
+              <div className="flex gap-4">
                 <Link
-                  href={authRedirect}
-                  className="rounded-xl bg-[#2B74F0] px-4 py-2 font-semibold text-white transition hover:bg-[#1e57d4]"
+                  href={`/jobs/${job.id}/apply`}
+                  className="bg-[#2B74F0] text-white px-8 py-4 rounded-2xl font-bold hover:bg-[#1e57d4] transition shadow-lg shadow-blue-500/20 flex-1 md:flex-initial text-center"
                 >
-                  Candidate login
+                  Quick Apply
                 </Link>
-                <Link
-                  href={`/candidate/signup?redirectTo=${encodeURIComponent(
-                    `/jobs/${params?.id ?? ""}`,
-                  )}`}
-                  className="rounded-xl border border-slate-200 px-4 py-2 font-semibold text-slate-700 transition hover:border-[#2B74F0] hover:text-[#2B74F0]"
+                <button 
+                  onClick={() => router.back()}
+                  className="px-8 py-4 rounded-2xl font-bold text-slate-600 hover:bg-slate-50 transition border border-slate-200 flex-1 md:flex-initial"
                 >
-                  Candidate signup
-                </Link>
+                  Go Back
+                </button>
               </div>
             </div>
-          ) : (
-            <form onSubmit={handleApply} className="mt-8 space-y-4">
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  Name
-                </label>
-                <input
-                  type="text"
-                  value={fullName}
-                  onChange={(event) => setFullName(event.target.value)}
-                  className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[#2B74F0]"
-                  required
-                />
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Age
-                  </label>
-                  <input
-                    type="number"
-                    min="16"
-                    value={age}
-                    onChange={(event) => setAge(event.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[#2B74F0]"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Address
-                  </label>
-                  <input
-                    type="text"
-                    value={address}
-                    onChange={(event) => setAddress(event.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[#2B74F0]"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  Paste CV text
-                </label>
-                <textarea
-                  value={cvText}
-                  onChange={(event) => setCvText(event.target.value)}
-                  className="h-40 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-[#2B74F0]"
-                  placeholder="Paste your CV here..."
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  Upload PDF CV
-                </label>
-                <input
-                  type="file"
-                  accept="application/pdf"
-                  onChange={(event) =>
-                    setCvFile(event.target.files?.[0] ?? null)
-                  }
-                  className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition file:mr-4 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:font-semibold file:text-[#2B74F0] hover:file:bg-blue-100"
-                />
-                <p className="mt-2 text-xs text-slate-500">
-                  Uploads use the `candidate-cvs` Supabase Storage bucket.
-                </p>
-              </div>
-
-              {candidateProfile?.default_cv_file_url ? (
-                <p className="text-xs text-slate-500">
-                  Existing uploaded CV on file will be replaced only if you add a
-                  new PDF now.
-                </p>
-              ) : null}
-
-              {error ? (
-                <div className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-700">
-                  {error}
-                </div>
-              ) : null}
-
-              {successMessage ? (
-                <div className="rounded-xl border border-green-300 bg-green-50 p-3 text-sm text-green-700">
-                  {successMessage}
-                </div>
-              ) : null}
-
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full rounded-xl bg-[#2B74F0] px-4 py-3 font-semibold text-white transition hover:bg-[#1e57d4] disabled:bg-slate-300"
-              >
-                {submitting ? "Submitting..." : "Submit application"}
-              </button>
-            </form>
-          )}
-        </section>
-      </div>
-    </main>
+          </div>
+        </div>
+      </main>
+    </div>
   );
 }

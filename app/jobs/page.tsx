@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { fetchPublishedJobs, type JobRow } from "@/lib/hiring-data";
+import Image from "next/image";
 
 export default function JobsPage() {
   const { user } = useAuth();
@@ -32,9 +33,13 @@ export default function JobsPage() {
         <section className="rounded-[2rem] bg-white px-8 py-10 shadow-sm ring-1 ring-black/5">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2B74F0]">
-                Umarava Job Board
-              </p>
+              <Image 
+                src="/umarava-logo.png" 
+                alt="Umarava Logo" 
+                width={225} 
+                height={50} 
+                className="h-[50px] w-auto mb-4"
+              />
               <h1 className="mt-3 text-4xl font-bold text-slate-900">
                 Discover your next role
               </h1>

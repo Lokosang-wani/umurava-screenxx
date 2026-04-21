@@ -9,6 +9,7 @@
 }
 
 body {
-  background: rgb(var(--color-background));
-  color: rgb(var(--color-foreground));
+  background: white;
+  color: #171717;
+  font-family: var(--font-work-sans), sans-serif;
 }

@@ -11,6 +11,10 @@ export interface JobRow {
   created_by: string;
   created_at: string;
   is_published?: boolean;
+  location?: string;
+  salary_range?: string;
+  type?: string;
+  experience_level?: string;
 }
 
 export interface CandidateRow {
@@ -487,5 +491,62 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
           interview.status === "scheduled" && interview.scheduled_at >= now,
       ).length,
     },
+  };
+}
+
+export interface CandidateDashboardData {
+  applications: (ApplicationRow & { job: JobRow })[];
+  interviews: (InterviewRow & { job: JobRow })[];
+  profile: CandidateProfileRow | null;
+}
+
+export async function fetchCandidateDashboardData(
+  userId: string,
+): Promise<CandidateDashboardData> {
+  // 1. Fetch profile and email
+  const profile = await fetchOwnProfile(userId);
+  const candidateProfile = await fetchOwnCandidateProfile(userId);
+
+  // 2. Fetch applications with jobs
+  let applications: (ApplicationRow & { job: JobRow })[] = [];
+  if (candidateProfile) {
+    const { data: apps, error: appError } = await supabase
+      .from("applications")
+      .select("*, job:jobs(*)")
+      .eq("candidate_profile_id", candidateProfile.id)
+      .order("created_at", { ascending: false });
+
+    if (appError) throw appError;
+    applications = (apps ?? []) as (ApplicationRow & { job: JobRow })[];
+  }
+
+  // 3. Fetch interviews with jobs
+  // We match by email in the candidates table to find interviews
+  let interviews: (InterviewRow & { job: JobRow })[] = [];
+  if (profile?.email) {
+    const { data: cands, error: candError } = await supabase
+      .from("candidates")
+      .select("id")
+      .eq("email", profile.email);
+
+    if (candError) throw candError;
+
+    if (cands && cands.length > 0) {
+      const candidateIds = cands.map((c) => c.id);
+      const { data: intvs, error: intvError } = await supabase
+        .from("interviews")
+        .select("*, job:jobs(*)")
+        .in("candidate_id", candidateIds)
+        .order("scheduled_at", { ascending: true });
+
+      if (intvError) throw intvError;
+      interviews = (intvs ?? []) as (InterviewRow & { job: JobRow })[];
+    }
+  }
+
+  return {
+    applications,
+    interviews,
+    profile: candidateProfile,
   };
 }
