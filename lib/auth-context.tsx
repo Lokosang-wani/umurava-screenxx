@@ -4,12 +4,19 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 
+export type AuthRole = "admin" | "candidate";
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   signUp: (
     email: string,
     password: string,
+    options?: {
+      role?: AuthRole;
+      fullName?: string;
+      redirectTo?: string;
+    },
   ) => Promise<{ needsEmailConfirmation: boolean }>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -44,17 +51,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => subscription?.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (
+    email: string,
+    password: string,
+    options?: {
+      role?: AuthRole;
+      fullName?: string;
+      redirectTo?: string;
+    },
+  ) => {
     const emailRedirectTo =
       typeof window === "undefined"
-        ? undefined
-        : `${window.location.origin}/dashboard`;
+        ? options?.redirectTo
+        : options?.redirectTo ?? `${window.location.origin}/dashboard`;
 
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo,
+        data: {
+          role: options?.role ?? "candidate",
+          full_name: options?.fullName ?? "",
+        },
       },
     });
 

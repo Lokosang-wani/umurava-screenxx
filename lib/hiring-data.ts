@@ -10,6 +10,7 @@ export interface JobRow {
   description: string;
   created_by: string;
   created_at: string;
+  is_published?: boolean;
 }
 
 export interface CandidateRow {
@@ -37,6 +38,11 @@ export interface InterviewRow {
   created_at: string;
 }
 
+export interface InterviewDetails extends InterviewRow {
+  candidate: Pick<CandidateRow, "id" | "name" | "status"> | null;
+  job: Pick<JobRow, "id" | "title"> | null;
+}
+
 export interface DashboardJob extends JobRow {
   candidates: CandidateRow[];
   interviews: InterviewRow[];
@@ -54,6 +60,34 @@ export interface DashboardData {
   };
 }
 
+export interface CandidateProfileRow {
+  id: string;
+  user_id: string;
+  age: number | null;
+  address: string | null;
+  default_cv_text: string | null;
+  default_cv_file_url: string | null;
+  created_at: string;
+}
+
+export interface ApplicationRow {
+  id: string;
+  candidate_profile_id: string;
+  job_id: string;
+  cv_text: string | null;
+  cv_file_url: string | null;
+  status: "submitted" | "analyzed" | "interview" | "hired" | "rejected";
+  created_at: string;
+}
+
+export interface ProfileRow {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  role: "admin" | "candidate";
+  created_at: string;
+}
+
 export async function fetchJobsForUser(userId: string) {
   const { data, error } = await supabase
     .from("jobs")
@@ -68,10 +102,90 @@ export async function fetchJobsForUser(userId: string) {
   return (data ?? []) as JobRow[];
 }
 
+export async function fetchPublishedJobs() {
+  const { data, error } = await supabase
+    .from("jobs")
+    .select("id, title, description, created_by, created_at, is_published")
+    .eq("is_published", true)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []) as JobRow[];
+}
+
+export async function fetchPublishedJobById(jobId: string) {
+  const { data, error } = await supabase
+    .from("jobs")
+    .select("id, title, description, created_by, created_at, is_published")
+    .eq("id", jobId)
+    .eq("is_published", true)
+    .single<JobRow>();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function fetchOwnProfile(userId: string) {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, email, full_name, role, created_at")
+    .eq("id", userId)
+    .single<ProfileRow>();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function updateOwnProfile(input: {
+  userId: string;
+  fullName?: string;
+}) {
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({
+      full_name: input.fullName ?? null,
+    })
+    .eq("id", input.userId)
+    .select("id, email, full_name, role, created_at")
+    .single<ProfileRow>();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function fetchOwnCandidateProfile(userId: string) {
+  const { data, error } = await supabase
+    .from("candidate_profiles")
+    .select(
+      "id, user_id, age, address, default_cv_text, default_cv_file_url, created_at",
+    )
+    .eq("user_id", userId)
+    .maybeSingle<CandidateProfileRow>();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
 export async function createJob(input: {
   title: string;
   description: string;
   createdBy: string;
+  isPublished?: boolean;
 }) {
   const { data, error } = await supabase
     .from("jobs")
@@ -79,6 +193,7 @@ export async function createJob(input: {
       title: input.title,
       description: input.description,
       created_by: input.createdBy,
+      is_published: input.isPublished ?? false,
     })
     .select()
     .single<JobRow>();
@@ -88,6 +203,82 @@ export async function createJob(input: {
   }
 
   return data;
+}
+
+export async function upsertCandidateProfile(input: {
+  userId: string;
+  age?: number | null;
+  address?: string | null;
+  defaultCvText?: string | null;
+  defaultCvFileUrl?: string | null;
+}) {
+  const { data, error } = await supabase
+    .from("candidate_profiles")
+    .upsert(
+      {
+        user_id: input.userId,
+        age: input.age ?? null,
+        address: input.address ?? null,
+        default_cv_text: input.defaultCvText ?? null,
+        default_cv_file_url: input.defaultCvFileUrl ?? null,
+      },
+      {
+        onConflict: "user_id",
+      },
+    )
+    .select()
+    .single<CandidateProfileRow>();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function submitApplication(input: {
+  candidateProfileId: string;
+  jobId: string;
+  cvText?: string | null;
+  cvFileUrl?: string | null;
+}) {
+  const { data, error } = await supabase
+    .from("applications")
+    .insert({
+      candidate_profile_id: input.candidateProfileId,
+      job_id: input.jobId,
+      cv_text: input.cvText ?? null,
+      cv_file_url: input.cvFileUrl ?? null,
+    })
+    .select()
+    .single<ApplicationRow>();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function uploadCandidateCv(userId: string, file: File) {
+  const safeFileName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
+  const path = `${userId}/${Date.now()}-${safeFileName}`;
+
+  const { data, error } = await supabase.storage
+    .from("candidate-cvs")
+    .upload(path, file, {
+      upsert: false,
+    });
+
+  if (error) {
+    throw error;
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("candidate-cvs").getPublicUrl(data.path);
+
+  return publicUrl;
 }
 
 export async function addCandidate(input: {
@@ -152,6 +343,43 @@ export async function createInterview(input: {
   return data;
 }
 
+export async function fetchInterviewById(interviewId: string) {
+  const { data, error } = await supabase
+    .from("interviews")
+    .select(
+      `
+        id,
+        candidate_id,
+        job_id,
+        scheduled_at,
+        meeting_link,
+        status,
+        created_at,
+        candidate:candidates (
+          id,
+          name,
+          status
+        ),
+        job:jobs (
+          id,
+          title
+        )
+      `,
+    )
+    .eq("id", interviewId)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return {
+    ...data,
+    candidate: Array.isArray(data.candidate) ? (data.candidate[0] ?? null) : null,
+    job: Array.isArray(data.job) ? (data.job[0] ?? null) : null,
+  } as InterviewDetails;
+}
+
 export async function updateCandidateStatus(
   candidateId: string,
   status: CandidateStatus,
@@ -162,6 +390,24 @@ export async function updateCandidateStatus(
     .eq("id", candidateId)
     .select()
     .single<CandidateRow>();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function updateInterviewStatus(
+  interviewId: string,
+  status: InterviewStatus,
+) {
+  const { data, error } = await supabase
+    .from("interviews")
+    .update({ status })
+    .eq("id", interviewId)
+    .select()
+    .single<InterviewRow>();
 
   if (error) {
     throw error;

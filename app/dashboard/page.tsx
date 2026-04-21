@@ -8,7 +8,9 @@ import {
   fetchDashboardData,
   type CandidateRow,
   type DashboardData,
+  type InterviewStatus,
   updateCandidateStatus,
+  updateInterviewStatus,
 } from "@/lib/hiring-data";
 
 interface CandidateListItem extends CandidateRow {
@@ -17,10 +19,11 @@ interface CandidateListItem extends CandidateRow {
 
 interface InterviewListItem {
   id: string;
+  candidateId: string;
   candidateName: string;
   scheduledAt: string;
   meetingLink: string | null;
-  status: string;
+  status: InterviewStatus;
 }
 
 export default function DashboardPage() {
@@ -90,6 +93,7 @@ export default function DashboardPage() {
     dashboardData?.jobs.flatMap((job) =>
       job.interviews.map((interview) => ({
         id: interview.id,
+        candidateId: interview.candidate_id,
         candidateName:
           job.candidates.find(
             (candidate) => candidate.id === interview.candidate_id,
@@ -160,6 +164,43 @@ export default function DashboardPage() {
         inviteError instanceof Error
           ? inviteError.message
           : "Failed to invite candidate to interview",
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleMarkHired = async (candidateId: string) => {
+    setActionLoading(true);
+    setError("");
+
+    try {
+      await updateCandidateStatus(candidateId, "hired");
+      await refreshDashboard();
+    } catch (statusError) {
+      setError(
+        statusError instanceof Error
+          ? statusError.message
+          : "Failed to mark candidate as hired",
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCompleteInterview = async (interview: InterviewListItem) => {
+    setActionLoading(true);
+    setError("");
+
+    try {
+      await updateInterviewStatus(interview.id, "completed");
+      await updateCandidateStatus(interview.candidateId, "hired");
+      await refreshDashboard();
+    } catch (statusError) {
+      setError(
+        statusError instanceof Error
+          ? statusError.message
+          : "Failed to complete interview",
       );
     } finally {
       setActionLoading(false);
@@ -295,9 +336,18 @@ export default function DashboardPage() {
                             <button
                               type="button"
                               onClick={() => setInviteCandidate(candidate)}
+                              disabled={actionLoading || candidate.status === "hired"}
                               className="rounded-xl bg-[#2B74F0] px-4 py-2 font-medium text-white transition hover:bg-[#1e57d4]"
                             >
                               Invite to Interview
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleMarkHired(candidate.id)}
+                              disabled={actionLoading || candidate.status === "hired"}
+                              className="rounded-xl border border-emerald-200 px-4 py-2 font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              Mark as Hired
                             </button>
                           </div>
                         </td>
@@ -351,16 +401,34 @@ export default function DashboardPage() {
                     <div className="text-sm text-slate-500">
                       {interview.meetingLink ?? "Meeting link not added yet."}
                     </div>
-                    {interview.meetingLink ? (
-                      <a
-                        href={interview.meetingLink}
-                        target="_blank"
-                        rel="noreferrer"
+                    <div className="flex flex-wrap gap-3">
+                      {interview.meetingLink ? (
+                        <a
+                          href={interview.meetingLink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex rounded-xl border border-slate-200 px-4 py-2 font-medium text-slate-700 transition hover:bg-slate-50"
+                        >
+                          Open Link
+                        </a>
+                      ) : null}
+                      <Link
+                        href={`/interview/${interview.id}`}
                         className="inline-flex rounded-xl border border-[#2B74F0] px-4 py-2 font-medium text-[#2B74F0] transition hover:bg-blue-50"
                       >
                         Join
-                      </a>
-                    ) : null}
+                      </Link>
+                      {interview.status !== "completed" ? (
+                        <button
+                          type="button"
+                          onClick={() => void handleCompleteInterview(interview)}
+                          disabled={actionLoading}
+                          className="inline-flex rounded-xl bg-emerald-600 px-4 py-2 font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Mark Completed
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
                 ))}
               </div>

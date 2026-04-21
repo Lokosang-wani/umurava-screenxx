@@ -34,7 +34,7 @@ export default function Signup() {
     setLoading(true);
 
     try {
-      const result = await signUp(email, password);
+      const result = await signUp(email, password, { role: "admin" });
 
       if (result.needsEmailConfirmation) {
         setSuccessMessage(
