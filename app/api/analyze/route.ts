@@ -1,14 +1,22 @@
 export async function POST(req: Request) {
   try {
     const { cvText, jobDescription } = await req.json();
+    const geminiApiKey = process.env.GEMINI_API_KEY;
 
     if (!cvText) {
       return Response.json({ error: "cvText is required" }, { status: 400 });
     }
 
+    if (!geminiApiKey) {
+      return Response.json(
+        { error: "Server is missing GEMINI_API_KEY" },
+        { status: 500 },
+      );
+    }
+
     const response = await fetch(
       "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=" +
-        process.env.GEMINI_API_KEY,
+        geminiApiKey,
       {
         method: "POST",
         headers: {
@@ -20,15 +28,25 @@ export async function POST(req: Request) {
               parts: [
                 {
                   text: `
-Analyze this CV and job description.
+Analyze the candidate CV against the job description.
 
-Return JSON with:
-- match_score (0-100)
-- potential_score (0-100)
-- skills (array)
-- strengths (array)
-- weaknesses (array)
-- explanation (string)
+Return ONLY valid JSON:
+{
+  "match_score": number (0-100),
+  "potential_score": number (0-100),
+  "strengths": string[],
+  "weaknesses": string[],
+  "missing_skills": string[],
+  "transferable_skills": string[],
+  "decision": "Strong Hire" | "Consider" | "Risky Hire",
+  "explanation": string (clear, recruiter-friendly, concise)
+}
+
+Rules:
+- Be concise but insightful
+- Focus on real hiring signals
+- Highlight potential, not just experience
+- Identify overlooked strengths
 
 CV:
 ${cvText}
@@ -43,6 +61,13 @@ ${jobDescription || "Not provided"}
         }),
       },
     );
+
+    if (!response.ok) {
+      return Response.json(
+        { error: "Failed to analyze CV" },
+        { status: response.status },
+      );
+    }
 
     const data = await response.json();
 
@@ -66,7 +91,7 @@ ${jobDescription || "Not provided"}
         // Try to parse as plain JSON
         analysisData = JSON.parse(textContent);
       }
-    } catch (parseError) {
+    } catch {
       return Response.json(
         { error: "Failed to parse response" },
         { status: 500 },
