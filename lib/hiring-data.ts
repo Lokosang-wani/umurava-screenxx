@@ -20,6 +20,8 @@ export interface CandidateRow {
   job_id: string;
   match_score: number;
   potential_score: number;
+  strengths: string[];
+  weaknesses: string[];
   decision: CandidateDecision;
   status: CandidateStatus;
   created_at: string;
@@ -52,6 +54,20 @@ export interface DashboardData {
   };
 }
 
+export async function fetchJobsForUser(userId: string) {
+  const { data, error } = await supabase
+    .from("jobs")
+    .select("id, title, description, created_by, created_at")
+    .eq("created_by", userId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []) as JobRow[];
+}
+
 export async function createJob(input: {
   title: string;
   description: string;
@@ -81,6 +97,8 @@ export async function addCandidate(input: {
   jobId: string;
   matchScore: number;
   potentialScore: number;
+  strengths: string[];
+  weaknesses: string[];
   decision: CandidateDecision;
   status?: CandidateStatus;
 }) {
@@ -93,6 +111,8 @@ export async function addCandidate(input: {
       job_id: input.jobId,
       match_score: input.matchScore,
       potential_score: input.potentialScore,
+      strengths: input.strengths,
+      weaknesses: input.weaknesses,
       decision: input.decision,
       status: input.status ?? "screened",
     })
@@ -168,6 +188,8 @@ export async function fetchDashboardData(userId: string): Promise<DashboardData>
           job_id,
           match_score,
           potential_score,
+          strengths,
+          weaknesses,
           decision,
           status,
           created_at
