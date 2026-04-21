@@ -11,6 +11,7 @@ export default function Signup() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const router = useRouter();
   const { signUp, user } = useAuth();
 
@@ -23,6 +24,7 @@ export default function Signup() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccessMessage("");
 
     if (password !== confirmPassword) {
       setError("Passwords do not match");
@@ -32,9 +34,25 @@ export default function Signup() {
     setLoading(true);
 
     try {
-      await signUp(email, password);
+      const result = await signUp(email, password);
+
+      if (result.needsEmailConfirmation) {
+        setSuccessMessage(
+          "Check your email to confirm your account. After confirmation, you will be redirected back and signed in automatically.",
+        );
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to sign up");
+      if (err instanceof Error) {
+        if (err.message.toLowerCase().includes("429")) {
+          setError(
+            "Too many signup attempts right now. Please wait a few minutes and try again, or check Supabase Auth rate limits and email settings.",
+          );
+        } else {
+          setError(err.message);
+        }
+      } else {
+        setError("Failed to sign up");
+      }
     } finally {
       setLoading(false);
     }
@@ -93,6 +111,12 @@ export default function Signup() {
             {error && (
               <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
                 {error}
+              </div>
+            )}
+
+            {successMessage && (
+              <div className="rounded-lg border border-green-300 bg-green-50 p-3 text-sm text-green-700">
+                {successMessage}
               </div>
             )}
 

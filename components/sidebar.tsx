@@ -5,21 +5,17 @@ import { usePathname } from "next/navigation";
 
 const sidebarItems = [
   { href: "/dashboard", label: "Dashboard", icon: "D" },
-  { href: "/dashboard/candidates", label: "Candidates", icon: "C" },
-  { href: "/dashboard/interviews", label: "Interviews", icon: "I" },
-  { href: "/dashboard/reports", label: "Reports", icon: "R" },
-  { href: "/dashboard/settings", label: "Settings", icon: "S" },
+  { href: "/", label: "Analyze CV", icon: "A" },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <div className="w-64 bg-white border-r border-gray-200 fixed left-0 top-16 bottom-0 overflow-y-auto">
+    <div className="fixed bottom-0 left-0 top-16 hidden w-64 overflow-y-auto border-r border-gray-200 bg-white md:block">
       <nav className="p-6 space-y-2">
         {sidebarItems.map((item) => {
-          const isActive =
-            pathname === item.href || pathname.startsWith(item.href + "/");
+          const isActive = pathname === item.href;
 
           return (
             <Link

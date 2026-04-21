@@ -7,7 +7,10 @@ import { supabase } from "./supabase";
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  signUp: (email: string, password: string) => Promise<void>;
+  signUp: (
+    email: string,
+    password: string,
+  ) => Promise<{ needsEmailConfirmation: boolean }>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -42,8 +45,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({ email, password });
+    const emailRedirectTo =
+      typeof window === "undefined"
+        ? undefined
+        : `${window.location.origin}/dashboard`;
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo,
+      },
+    });
+
     if (error) throw error;
+
+    return {
+      needsEmailConfirmation: !data.session,
+    };
   };
 
   const signIn = async (email: string, password: string) => {
