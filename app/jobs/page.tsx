@@ -1,124 +1,80 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { useAuth } from "@/lib/auth-context";
-import { fetchPublishedJobs, type JobRow } from "@/lib/hiring-data";
-import Image from "next/image";
+import { Plus, Briefcase, ChevronRight } from 'lucide-react';
+import Link from 'next/link';
 
 export default function JobsPage() {
-  const { user } = useAuth();
-  const [jobs, setJobs] = useState<JobRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    fetchPublishedJobs()
-      .then((jobRows) => {
-        setJobs(jobRows);
-      })
-      .catch((loadError: unknown) => {
-        setError(
-          loadError instanceof Error ? loadError.message : "Failed to load jobs",
-        );
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, []);
-
   return (
-    <main className="min-h-screen bg-[#f4f8ff] px-6 py-10">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
-        <section className="rounded-[2rem] bg-white px-8 py-10 shadow-sm ring-1 ring-black/5">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <Image 
-                src="/umarava-logo.png" 
-                alt="Umarava Logo" 
-                width={225} 
-                height={50} 
-                className="h-[50px] w-auto mb-4"
-              />
-              <h1 className="mt-3 text-4xl font-bold text-slate-900">
-                Discover your next role
-              </h1>
-              <p className="mt-3 max-w-2xl text-sm text-slate-500">
-                Browse published jobs, review the details, and apply directly
-                through the candidate portal.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              {user ? (
-                <Link
-                  href="/dashboard"
-                  className="inline-flex rounded-xl border border-slate-200 px-4 py-3 font-semibold text-slate-700 transition hover:border-[#2B74F0] hover:text-[#2B74F0]"
-                >
-                  Dashboard
-                </Link>
-              ) : (
-                <>
-                  <Link
-                    href="/candidate/login"
-                    className="inline-flex rounded-xl border border-slate-200 px-4 py-3 font-semibold text-slate-700 transition hover:border-[#2B74F0] hover:text-[#2B74F0]"
-                  >
-                    Candidate Login
-                  </Link>
-                  <Link
-                    href="/candidate/signup"
-                    className="inline-flex rounded-xl bg-[#2B74F0] px-4 py-3 font-semibold text-white transition hover:bg-[#1e57d4]"
-                  >
-                    Candidate Signup
-                  </Link>
-                </>
-              )}
-            </div>
-          </div>
-        </section>
-
-        {error ? (
-          <div className="rounded-2xl border border-red-300 bg-red-50 p-4 text-red-700">
-            {error}
-          </div>
-        ) : null}
-
-        {loading ? (
-          <div className="rounded-2xl bg-white p-8 text-sm text-slate-500 shadow-sm ring-1 ring-black/5">
-            Loading jobs...
-          </div>
-        ) : jobs.length === 0 ? (
-          <div className="rounded-2xl bg-white p-8 text-sm text-slate-500 shadow-sm ring-1 ring-black/5">
-            No published jobs yet.
-          </div>
-        ) : (
-          <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {jobs.map((job) => (
-              <article
-                key={job.id}
-                className="flex flex-col rounded-[1.75rem] bg-white p-6 shadow-sm ring-1 ring-black/5"
-              >
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#2B74F0]">
-                  Open Role
-                </p>
-                <h2 className="mt-4 text-2xl font-bold text-slate-900">
-                  {job.title}
-                </h2>
-                <p className="mt-4 flex-1 text-sm leading-6 text-slate-500">
-                  {job.description.length > 200
-                    ? `${job.description.slice(0, 200)}...`
-                    : job.description}
-                </p>
-                <Link
-                  href={`/jobs/${job.id}`}
-                  className="mt-6 inline-flex w-fit rounded-xl bg-[#2B74F0] px-4 py-3 font-semibold text-white transition hover:bg-[#1e57d4]"
-                >
-                  View details
-                </Link>
-              </article>
-            ))}
-          </section>
-        )}
+    <div className="p-8 max-w-7xl mx-auto space-y-8">
+      <div className="flex justify-between items-end">
+        <div>
+          <h1 className="text-3xl font-bold text-[#0B1B42]">Jobs</h1>
+          <p className="text-gray-500 mt-2">Manage your active job postings and candidate pipelines.</p>
+        </div>
+        <Link href="/jobs/create" className="flex items-center px-4 py-2 bg-[#0B1B42] text-white border border-transparent rounded-lg text-sm font-medium hover:bg-blue-900 transition-colors shadow-sm">
+          <Plus className="w-4 h-4 mr-2" />
+          Create New Job
+        </Link>
       </div>
-    </main>
+
+      <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+           <h2 className="text-lg font-bold text-[#0B1B42]">Active Opportunities</h2>
+           <span className="text-sm font-medium text-gray-500">2 Total Jobs</span>
+        </div>
+        
+        <div className="divide-y divide-gray-100">
+           {/* Job Item 1 */}
+           <div className="p-6 hover:bg-blue-50 transition-colors flex items-center justify-between group">
+             <div className="flex items-center space-x-4">
+               <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center shrink-0">
+                 <Briefcase className="w-6 h-6" />
+               </div>
+               <div>
+                 <h3 className="font-bold text-[#0B1B42] text-lg">Senior AI Engineer</h3>
+                 <p className="text-sm text-gray-500 mt-1">Tech & Infrastructure • Remote</p>
+                 <div className="flex items-center space-x-2 mt-2">
+                   <span className="text-[10px] font-bold px-2 py-1 rounded bg-green-100 text-green-800 uppercase tracking-wider">High Priority</span>
+                   <span className="text-[10px] font-bold px-2 py-1 rounded bg-gray-100 text-gray-600 uppercase tracking-wider">24 Applicants</span>
+                 </div>
+               </div>
+             </div>
+             <div className="flex items-center space-x-6">
+                <div className="text-right hidden sm:block">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Top Match</p>
+                  <p className="text-xl font-light text-green-500">92%</p>
+                </div>
+                <Link href="/shortlist" className="p-2 bg-white border border-gray-200 rounded-lg text-gray-400 hover:text-blue-600 hover:border-blue-300 transition-colors shadow-sm">
+                  <ChevronRight className="w-5 h-5" />
+                </Link>
+             </div>
+           </div>
+
+           {/* Job Item 2 */}
+           <div className="p-6 hover:bg-blue-50 transition-colors flex items-center justify-between group">
+             <div className="flex items-center space-x-4">
+               <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center shrink-0">
+                 <Briefcase className="w-6 h-6" />
+               </div>
+               <div>
+                 <h3 className="font-bold text-[#0B1B42] text-lg">Product Designer</h3>
+                 <p className="text-sm text-gray-500 mt-1">User Experience • Kigali, RW</p>
+                 <div className="flex items-center space-x-2 mt-2">
+                   <span className="text-[10px] font-bold px-2 py-1 rounded bg-gray-100 text-gray-600 uppercase tracking-wider">Regular</span>
+                   <span className="text-[10px] font-bold px-2 py-1 rounded bg-gray-100 text-gray-600 uppercase tracking-wider">8 Applicants</span>
+                 </div>
+               </div>
+             </div>
+             <div className="flex items-center space-x-6">
+                <div className="text-right hidden sm:block">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Top Match</p>
+                  <p className="text-xl font-light text-green-500">78%</p>
+                </div>
+                <Link href="/shortlist" className="p-2 bg-white border border-gray-200 rounded-lg text-gray-400 hover:text-blue-600 hover:border-blue-300 transition-colors shadow-sm">
+                  <ChevronRight className="w-5 h-5" />
+                </Link>
+             </div>
+           </div>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -1,16 +1,15 @@
 import type { Metadata } from "next";
-import { Work_Sans } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
-import Providers from "./providers";
+import StoreProvider from "@/store/StoreProvider";
+import Sidebar from "@/components/layout/Sidebar";
+import Header from "@/components/layout/Header";
 
-const workSans = Work_Sans({
-  variable: "--font-work-sans",
-  subsets: ["latin"],
-});
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Umarava AI Hackathon",
-  description: "AI-powered candidate analysis",
+  title: "ScreenerX | HR AI Screening",
+  description: "AI-Powered Talent Screening Tool",
 };
 
 export default function RootLayout({
@@ -19,12 +18,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${workSans.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col font-work-sans">
-        <Providers>{children}</Providers>
+    <html lang="en">
+      <body className={`${inter.className} bg-gray-50`}>
+        <StoreProvider>
+          <div className="flex min-h-screen">
+            <Sidebar />
+            <div className="flex-1 ml-64 flex flex-col">
+              <Header />
+              <main className="flex-1 pt-16 bg-gray-50 overflow-auto">
+                {children}
+              </main>
+            </div>
+          </div>
+        </StoreProvider>
       </body>
     </html>
   );
