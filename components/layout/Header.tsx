@@ -28,14 +28,10 @@ export default function Header() {
         </div>
 
         <Link href="/settings" className="flex items-center space-x-3 p-1.5 hover:bg-gray-50 rounded-2xl transition-all">
-          <div className="w-9 h-9 shrink-0">
-            <img src="/screenerx-logo.png" alt="ScreenerX Logo" className="w-full h-full object-contain" />
-          </div>
           <div className="text-left hidden lg:block">
             <p className="text-sm font-bold text-[#0B1B42] leading-none">Admin User</p>
             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">HR Manager</p>
           </div>
-          <ChevronDown className="w-4 h-4 text-gray-400" />
         </Link>
       </div>
     </header>

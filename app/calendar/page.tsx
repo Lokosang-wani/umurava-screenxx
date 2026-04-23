@@ -1,5 +1,5 @@
 'use client';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, MapPin, Users, Sparkles, User, MoreHorizontal, Plus, X, Video, CheckCircle2 } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, MapPin, Users, Sparkles, User, MoreHorizontal, Plus, X, Video, CheckCircle2, Settings2 } from 'lucide-react';
 import { useState } from 'react';
 import clsx from 'clsx';
 
@@ -7,8 +7,16 @@ export default function CalendarPage() {
   const [currentMonth, setCurrentMonth] = useState('October 2026');
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [isManageTypesOpen, setIsManageTypesOpen] = useState(false);
   const [selectedInterview, setSelectedInterview] = useState<any>(null);
   const [scheduleSuccess, setScheduleSuccess] = useState(false);
+
+  // New feature: Interview Types
+  const [interviewTypes, setInterviewTypes] = useState([
+    { id: 1, name: 'Technical Screen', duration: '45m' },
+    { id: 2, name: 'Initial Culture Fit', duration: '30m' },
+    { id: 3, name: 'System Design', duration: '60m' }
+  ]);
 
   const handlePrev = () => {
     if (viewMode === 'month') setCurrentMonth('September 2026');
@@ -91,6 +99,12 @@ export default function CalendarPage() {
           <p className="text-xs text-gray-500 mt-0.5">Manage your upcoming screening sessions and sync with AI scheduling.</p>
         </div>
         <div className="flex space-x-3">
+          <button 
+            onClick={() => setIsManageTypesOpen(true)}
+            className="px-4 py-2 bg-white border border-gray-200 text-[#0B1B42] rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center"
+          >
+             <Settings2 className="w-4 h-4 mr-2" /> Interview Types
+          </button>
           <button 
             onClick={() => setIsScheduleModalOpen(true)}
             className="px-4 py-2 bg-[#0B1B42] text-white rounded-lg text-sm font-medium hover:bg-blue-900 transition-colors shadow-sm flex items-center"
@@ -368,7 +382,46 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {/* Schedule Interview Modal (Existing) */}
+      {/* MANAGE INTERVIEW TYPES MODAL */}
+      {isManageTypesOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-y-auto max-h-[90vh]">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+              <h2 className="text-lg font-bold text-[#0B1B42]">Interview Types</h2>
+              <button onClick={() => setIsManageTypesOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="space-y-3">
+                {interviewTypes.map(type => (
+                  <div key={type.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
+                    <div>
+                      <h4 className="text-sm font-bold text-[#0B1B42]">{type.name}</h4>
+                      <p className="text-[10px] text-gray-500 font-medium">Duration: {type.duration}</p>
+                    </div>
+                    <button onClick={() => setInterviewTypes(interviewTypes.filter(t => t.id !== type.id))} className="text-gray-400 hover:text-red-500 transition-colors">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button 
+                onClick={() => {
+                  const name = prompt('Type Name?');
+                  const duration = prompt('Duration (e.g. 45m)?');
+                  if (name && duration) setInterviewTypes([...interviewTypes, { id: Date.now(), name, duration }]);
+                }}
+                className="w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 font-bold text-xs hover:border-blue-400 hover:text-blue-600 transition-all"
+              >
+                + Add New Type
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Schedule Interview Modal */}
       {isScheduleModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-y-auto max-h-[90vh] animate-in fade-in zoom-in-95 duration-200 custom-scrollbar">
@@ -410,9 +463,9 @@ export default function CalendarPage() {
                 <div>
                   <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Interview Type</label>
                   <select className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
-                    <option>Technical Screen (45m)</option>
-                    <option>Initial Culture Fit (30m)</option>
-                    <option>System Design (60m)</option>
+                    {interviewTypes.map(type => (
+                      <option key={type.id}>{type.name} ({type.duration})</option>
+                    ))}
                   </select>
                 </div>
                 

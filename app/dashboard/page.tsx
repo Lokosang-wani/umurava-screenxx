@@ -46,7 +46,7 @@ export default function Dashboard() {
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-bold text-[#0B1B42]">Active Positions</h2>
             <div className="flex items-center space-x-4">
-              <Link href="/jobs" className="text-sm font-bold text-blue-600 hover:underline">View all</Link>
+              <Link href="/jobs" className="text-sm font-bold text-[#0B1B42] hover:underline">View all</Link>
               <div className="flex space-x-1">
                 <button 
                   onClick={() => scroll('left')}
@@ -91,7 +91,7 @@ export default function Dashboard() {
                 <p className="text-blue-200 text-sm mt-1 max-w-md">Our intelligence engine has screened <span className="text-white font-bold">142 resumes</span> today. Found 12 high-confidence matches across all active roles.</p>
               </div>
             </div>
-            <Link href="/shortlist" className="px-6 py-3 bg-white text-[#0B1B42] rounded-xl text-sm font-bold hover:bg-blue-50 transition-all whitespace-nowrap">
+            <Link href="/shortlist" className="px-6 py-3 bg-white text-[#0B1B42] rounded-xl text-sm font-bold hover:bg-gray-50 transition-all whitespace-nowrap">
               Review Matches
             </Link>
           </div>
@@ -115,17 +115,17 @@ export default function Dashboard() {
               </div>
             ))}
             <div className="mt-6 pt-4 text-center">
-              <Link href="/audit" className="text-xs font-bold text-blue-600 uppercase tracking-widest hover:underline">Full Activity Log</Link>
+              <Link href="/audit" className="text-xs font-bold text-[#0B1B42] uppercase tracking-widest hover:underline">Full Activity Log</Link>
             </div>
           </div>
 
           {/* Quick Tip */}
-          <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 relative overflow-hidden">
-             <div className="flex items-center space-x-2 text-blue-800 font-bold text-[10px] uppercase tracking-widest mb-3">
+          <div className="bg-gray-50 border border-gray-100 rounded-2xl p-5 relative overflow-hidden">
+             <div className="flex items-center space-x-2 text-[#0B1B42] font-bold text-[10px] uppercase tracking-widest mb-3">
                <Lightbulb className="w-4 h-4" />
                <span>AI Intelligence Tip</span>
              </div>
-             <p className="text-sm text-blue-900 italic font-medium leading-relaxed">
+             <p className="text-sm text-gray-600 italic font-medium leading-relaxed">
                "Candidates for 'Product Designer' are responding well to remote-first perks. Consider emphasizing this in your listings."
              </p>
           </div>

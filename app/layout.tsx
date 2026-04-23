@@ -41,6 +41,7 @@ export default function RootLayout({
       <head>
         <title>ScreenerX | AI-Powered Talent Screening</title>
         <meta name="description" content="AI-Powered Talent Screening Tool" />
+        <link rel="icon" href="/screenerx-logo-fav-icon.png" type="image/png" />
       </head>
       <body className={`${inter.className} bg-[#F8FAFC]`}>
         <StoreProvider>

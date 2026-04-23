@@ -43,12 +43,12 @@ export default function Sidebar() {
               className={clsx(
                 'flex items-center space-x-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-all duration-200 group',
                 isActive
-                  ? 'bg-blue-50 text-blue-600'
+                  ? 'bg-gray-100 text-[#0B1B42]'
                   : 'text-gray-500 hover:bg-gray-50 hover:text-[#0B1B42]'
               )}
             >
               <item.icon
-                className={clsx('w-5 h-5 transition-colors', isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-600')}
+                className={clsx('w-5 h-5 transition-colors', isActive ? 'text-[#0B1B42]' : 'text-gray-400 group-hover:text-blue-600')}
                 strokeWidth={isActive ? 2.5 : 2}
               />
               <span>{item.name}</span>
@@ -61,7 +61,7 @@ export default function Sidebar() {
       <div className="p-4 border-t border-gray-50 space-y-2">
         <Link
           href="/jobs/create"
-          className="flex items-center justify-center w-full bg-blue-600 text-white py-3.5 rounded-2xl text-sm font-bold hover:bg-blue-700 transition-all shadow-md shadow-blue-600/20 hover:shadow-lg hover:-translate-y-0.5"
+          className="flex items-center justify-center w-full bg-[#0B1B42] text-white py-3.5 rounded-2xl text-sm font-bold hover:bg-blue-900 transition-all shadow-md shadow-blue-900/10 hover:shadow-lg hover:-translate-y-0.5"
         >
           <Plus className="w-4 h-4 mr-2" />
           Create New Job
