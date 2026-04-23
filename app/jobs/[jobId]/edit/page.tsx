@@ -1,10 +1,14 @@
 'use client';
-import { ArrowLeft, Sparkles, CheckCircle2, ChevronDown, X, MessageSquareHeart } from 'lucide-react';
+import { useParams } from 'next/navigation';
+import { ArrowLeft, Sparkles, CheckCircle2, ChevronDown, X, Save } from 'lucide-react';
 import Link from 'next/link';
 import clsx from 'clsx';
 import { useState } from 'react';
 
-export default function CreateJob() {
+export default function EditJobPage() {
+  const params = useParams();
+  const jobId = params.jobId as string;
+  
   const [techSkills, setTechSkills] = useState(['Python', 'PyTorch', 'LLMs']);
   const [softSkills, setSoftSkills] = useState(['Leadership', 'Critical Thinking']);
   const [currentStep, setCurrentStep] = useState(1);
@@ -15,11 +19,16 @@ export default function CreateJob() {
   return (
     <div className="bg-gray-50 min-h-screen pb-12">
       {/* Top Navigation */}
-      <div className="bg-white border-b border-gray-200 px-8 py-4 flex items-center sticky top-0 z-10">
-        <Link href="/dashboard" className="mr-4 text-gray-500 hover:text-gray-800 transition-colors">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <h1 className="text-xl font-bold text-[#0B1B42]">Create New Job</h1>
+      <div className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between sticky top-0 z-10">
+        <div className="flex items-center">
+          <Link href={`/jobs/${jobId}`} className="mr-4 text-gray-500 hover:text-gray-800 transition-colors">
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <h1 className="text-xl font-bold text-[#0B1B42]">Edit Job: Senior AI Engineer</h1>
+        </div>
+        <button className="flex items-center px-4 py-2 bg-[#0B1B42] text-white rounded-lg text-sm font-medium hover:bg-blue-900 transition-colors shadow-sm">
+          <Save className="w-4 h-4 mr-2" /> Save Changes
+        </button>
       </div>
 
       <div className="max-w-6xl mx-auto px-8 mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -42,17 +51,17 @@ export default function CreateJob() {
              {currentStep === 1 && (
                <div>
                  <h2 className="text-lg font-bold text-[#0B1B42]">Basic Information</h2>
-                 <p className="text-sm text-gray-500 mb-6 mt-1">Define the core identity of the role</p>
+                 <p className="text-sm text-gray-500 mb-6 mt-1">Update the core identity of the role</p>
                  
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                    <div>
                      <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Job Title</label>
-                     <input type="text" placeholder="e.g. Senior Machine Learning Engineer" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                     <input type="text" defaultValue="Senior AI Engineer" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
                    </div>
                    <div>
                      <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Department</label>
                      <div className="relative">
-                       <select className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm appearance-none focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                       <select defaultValue="Engineering" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm appearance-none focus:ring-2 focus:ring-blue-500 outline-none bg-white">
                          <option>Engineering</option>
                          <option>Product</option>
                          <option>Design</option>
@@ -64,7 +73,7 @@ export default function CreateJob() {
                  
                  <div>
                    <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Role Description</label>
-                   <textarea rows={4} placeholder="Briefly describe the mission of this role..." className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"></textarea>
+                   <textarea rows={4} defaultValue="Briefly describe the mission of this role..." className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"></textarea>
                  </div>
                </div>
              )}
@@ -111,8 +120,8 @@ export default function CreateJob() {
                   <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-4">
                     <Sparkles className="w-8 h-8" />
                   </div>
-                  <h2 className="text-xl font-bold text-[#0B1B42] mb-2">Connecting to ScreenerX AI...</h2>
-                  <p className="text-gray-500 text-sm text-center max-w-md">The backend is not connected yet, but in a real scenario, this step would generate your ideal candidate baseline.</p>
+                  <h2 className="text-xl font-bold text-[#0B1B42] mb-2">Updating AI Baseline...</h2>
+                  <p className="text-gray-500 text-sm text-center max-w-md">Changing requirements may cause match scores for existing applicants to be recalculated.</p>
                </div>
              )}
 
@@ -122,14 +131,13 @@ export default function CreateJob() {
                   <button onClick={prevStep} className="px-6 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 border border-gray-200 rounded-lg transition-colors">Back</button>
                 ) : <div></div>}
                 <div className="flex space-x-4">
-                  <button className="px-6 py-2.5 text-sm font-medium text-[#0B1B42] hover:bg-gray-50 rounded-lg transition-colors">Save Draft</button>
                   {currentStep < 4 ? (
                     <button onClick={nextStep} className="px-6 py-2.5 text-sm font-medium bg-[#0B1B42] text-white rounded-lg hover:bg-blue-900 transition-colors shadow-sm">
-                      {currentStep === 1 ? 'Continue to Requirements' : 'Continue to AI Setup'}
+                      {currentStep === 1 ? 'Continue to Requirements' : 'Review AI Changes'}
                     </button>
                   ) : (
-                    <Link href="/jobs" className="px-6 py-2.5 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm">
-                      Publish Job
+                    <Link href={`/jobs/${jobId}`} className="px-6 py-2.5 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm">
+                      Confirm Updates
                     </Link>
                   )}
                 </div>
@@ -167,61 +175,7 @@ export default function CreateJob() {
                  </div>
                </div>
              </div>
-
-             <div className="space-y-2">
-               <div className="flex justify-between items-end">
-                 <span className="text-xs font-bold text-gray-700 tracking-wider uppercase">Profile Precision</span>
-                 <span className="text-lg font-bold text-green-500">82%</span>
-               </div>
-               <div className="w-full bg-gray-100 rounded-full h-2">
-                 <div className="bg-green-500 h-2 rounded-full" style={{ width: '82%' }}></div>
-               </div>
-               <p className="text-xs text-gray-500 italic pt-1">Add more specific technical certifications to increase precision.</p>
-             </div>
           </div>
-
-          {/* Market Intelligence Widget */}
-          <div className="bg-[#0B1B42] rounded-xl overflow-hidden shadow-sm text-white relative">
-             <div className="h-28 bg-gradient-to-r from-blue-900 to-[#0B1B42] relative flex items-center justify-center overflow-hidden">
-                {/* Mockup of a chart */}
-                <div className="absolute bottom-0 w-full h-1/2 flex items-end opacity-20 px-4 space-x-1">
-                   {[40, 70, 45, 90, 60, 80, 50, 100, 75, 50, 30].map((h, i) => (
-                     <div key={i} className="flex-1 bg-blue-300 rounded-t-sm" style={{ height: `${h}%` }}></div>
-                   ))}
-                </div>
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0B1B42] to-transparent"></div>
-                <h3 className="relative z-10 text-lg font-bold mt-4">Market Intelligence</h3>
-             </div>
-             <div className="p-6 bg-white text-gray-800 rounded-b-xl border border-t-0 border-gray-200">
-                <div className="space-y-4 mb-6">
-                  <div className="flex justify-between items-center pb-3 border-b border-gray-100">
-                    <span className="text-sm text-gray-500">Avg. Salary Range</span>
-                    <span className="text-sm font-bold text-[#0B1B42]">$140k - $190k</span>
-                  </div>
-                  <div className="flex justify-between items-center pb-3 border-b border-gray-100">
-                    <span className="text-sm text-gray-500">Candidate Availability</span>
-                    <span className="text-xs font-bold bg-red-100 text-red-700 px-2 py-0.5 rounded uppercase">Low</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-500">Time to Hire</span>
-                    <span className="text-sm font-bold text-[#0B1B42]">24 Days</span>
-                  </div>
-                </div>
-                <button className="w-full py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors shadow-sm">View Full Report</button>
-             </div>
-          </div>
-
-          {/* Need Help Prompt */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex items-start space-x-4 cursor-pointer hover:border-blue-300 transition-colors">
-            <div className="bg-blue-50 p-3 rounded-full text-blue-600 shrink-0">
-               <MessageSquareHeart className="w-6 h-6" />
-            </div>
-            <div>
-              <h4 className="text-sm font-bold text-[#0B1B42]">Need help with requirements?</h4>
-              <p className="text-xs text-gray-500 mt-1">Talk to an AI Recruiting Expert</p>
-            </div>
-          </div>
-
         </div>
       </div>
     </div>

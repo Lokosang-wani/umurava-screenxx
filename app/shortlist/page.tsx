@@ -1,9 +1,11 @@
-import { Download, Calendar, Sparkles, CheckCircle2, AlertTriangle, Users, CheckSquare, TrendingUp, Cpu, Globe } from 'lucide-react';
+'use client';
+import { Download, Calendar, Sparkles, CheckCircle2, AlertTriangle, Users, CheckSquare, TrendingUp, Cpu, Globe, X, Clock } from 'lucide-react';
 import clsx from 'clsx';
+import Link from 'next/link';
 
 export default function Shortlist() {
   return (
-    <div className="bg-gray-50 min-h-screen p-8 max-w-7xl mx-auto space-y-8">
+    <div className="bg-gray-50 min-h-screen p-8 max-w-7xl mx-auto space-y-8 relative">
       
       {/* Header */}
       <div className="flex justify-between items-end">
@@ -16,10 +18,6 @@ export default function Shortlist() {
           <button className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors shadow-sm">
             <Download className="w-4 h-4 mr-2" />
             Export Report
-          </button>
-          <button className="flex items-center px-4 py-2 bg-[#0B1B42] text-white border border-transparent rounded-lg text-sm font-medium hover:bg-blue-900 transition-colors shadow-sm">
-            <Calendar className="w-4 h-4 mr-2" />
-            Schedule Interviews
           </button>
         </div>
       </div>
@@ -35,7 +33,7 @@ export default function Shortlist() {
                <div className="flex items-center space-x-4">
                  <div className="w-14 h-14 bg-[#0B1B42] text-white rounded-xl flex items-center justify-center text-2xl font-bold shadow-sm">1</div>
                  <div>
-                   <h2 className="text-xl font-bold text-[#0B1B42]">Dr. Aris Thorne</h2>
+                   <Link href="/applicants/1" className="text-xl font-bold text-[#0B1B42] hover:text-blue-600 hover:underline">Dr. Aris Thorne</Link>
                    <p className="text-sm text-gray-500 mt-1">Senior ML Infrastructure Engineer @ DeepMind (Ex-OpenAI)</p>
                  </div>
                </div>
@@ -125,7 +123,7 @@ export default function Shortlist() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             
             {/* Candidate 2 */}
-            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm flex flex-col h-full">
                <div className="flex justify-between items-start mb-6">
                  <div className="flex items-center space-x-3">
                    <div className="w-10 h-10 bg-gray-100 text-gray-600 rounded-lg flex items-center justify-center font-bold">2</div>
@@ -137,7 +135,7 @@ export default function Shortlist() {
                  <span className="text-2xl font-light text-green-500">94%</span>
                </div>
                
-               <div className="mb-6">
+               <div className="mb-6 flex-grow">
                  <div className="flex items-center space-x-2 mb-2">
                    <Sparkles className="w-3 h-3 text-indigo-600" />
                    <span className="text-[10px] font-bold text-[#0B1B42] uppercase tracking-wider">Analysis Summary</span>
@@ -145,16 +143,16 @@ export default function Shortlist() {
                  <p className="text-sm text-gray-600">Exceptional theoretical background in Transformer optimizations. Led the team for 7B parameter efficiency breakthrough.</p>
                </div>
                
-               <div className="flex flex-wrap gap-2 mb-6">
+               <div className="flex flex-wrap gap-2 mb-6 mt-auto">
                   <span className="px-2 py-1 bg-gray-50 text-gray-600 rounded border border-gray-200 text-[10px] font-medium">Model Quantization</span>
                   <span className="px-2 py-1 bg-gray-50 text-gray-600 rounded border border-gray-200 text-[10px] font-medium">Flash Attention</span>
                </div>
                
-               <button className="w-full py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">View Deep Dive</button>
+               <Link href="/applicants/2" className="block text-center w-full py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">View Deep Dive</Link>
             </div>
 
             {/* Candidate 3 */}
-            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm flex flex-col h-full">
                <div className="flex justify-between items-start mb-6">
                  <div className="flex items-center space-x-3">
                    <div className="w-10 h-10 bg-gray-100 text-gray-600 rounded-lg flex items-center justify-center font-bold">3</div>
@@ -166,7 +164,7 @@ export default function Shortlist() {
                  <span className="text-2xl font-light text-green-500">91%</span>
                </div>
                
-               <div className="mb-6">
+               <div className="mb-6 flex-grow">
                  <div className="flex items-center space-x-2 mb-2">
                    <Sparkles className="w-3 h-3 text-indigo-600" />
                    <span className="text-[10px] font-bold text-[#0B1B42] uppercase tracking-wider">Analysis Summary</span>
@@ -174,12 +172,12 @@ export default function Shortlist() {
                  <p className="text-sm text-gray-600">Best-in-class MLOps workflow automation. Highly pragmatic with focus on deployment reliability and monitoring.</p>
                </div>
                
-               <div className="flex flex-wrap gap-2 mb-6">
+               <div className="flex flex-wrap gap-2 mb-6 mt-auto">
                   <span className="px-2 py-1 bg-gray-50 text-gray-600 rounded border border-gray-200 text-[10px] font-medium">Triton Server</span>
                   <span className="px-2 py-1 bg-gray-50 text-gray-600 rounded border border-gray-200 text-[10px] font-medium">CI/CD for ML</span>
                </div>
                
-               <button className="w-full py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">View Deep Dive</button>
+               <Link href="/applicants/3" className="block text-center w-full py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">View Deep Dive</Link>
             </div>
 
           </div>

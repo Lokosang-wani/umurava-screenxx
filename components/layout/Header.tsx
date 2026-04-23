@@ -1,37 +1,42 @@
-import { Bell, Settings, Search } from 'lucide-react';
-import Image from 'next/image';
+'use client';
+import { Bell, Settings, Search, ChevronDown, User } from 'lucide-react';
 import Link from 'next/link';
 
 export default function Header() {
   return (
-    <header className="h-16 border-b border-gray-200 bg-white flex items-center justify-between px-8 fixed top-0 right-0 left-64 z-10">
-      <div className="flex-1 max-w-2xl">
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-4 w-4 text-gray-400" />
-          </div>
+    <header className="h-20 border-b border-gray-100 bg-white/80 backdrop-blur-md flex items-center justify-between px-8 fixed top-0 right-0 left-64 z-30">
+      <div className="flex-1 max-w-xl">
+        <div className="relative group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-blue-600 transition-colors" />
           <input
             type="text"
-            placeholder="Search applicants, jobs, or analytics..."
-            className="block w-full pl-10 pr-3 py-2 border border-transparent rounded-lg leading-5 bg-gray-50 placeholder-gray-500 focus:outline-none focus:bg-white focus:border-gray-300 focus:ring-0 sm:text-sm transition-colors"
+            placeholder="Search candidates, jobs, or analytics..."
+            className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-transparent rounded-2xl text-sm focus:outline-none focus:bg-white focus:border-blue-500/20 focus:ring-4 focus:ring-blue-500/5 transition-all"
           />
         </div>
       </div>
-      
-      <div className="flex items-center space-x-6">
-        <Link href="/notifications" className="text-gray-400 hover:text-gray-600 transition-colors relative">
-          <Bell className="h-5 w-5" />
-          <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
-        </Link>
-        <Link href="/settings" className="text-gray-400 hover:text-gray-600 transition-colors">
-          <Settings className="h-5 w-5" />
-        </Link>
-        <div className="h-8 w-8 rounded-full bg-gray-200 overflow-hidden border border-gray-300 cursor-pointer">
-          {/* Using a placeholder avatar for now */}
-          <div className="h-full w-full bg-gradient-to-tr from-blue-100 to-blue-200 flex items-center justify-center">
-             <span className="text-blue-800 font-medium text-xs">AT</span>
-          </div>
+
+      <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2 pr-4 border-r border-gray-100">
+          <Link href="/notifications" className="w-10 h-10 flex items-center justify-center rounded-xl text-gray-500 hover:bg-gray-50 transition-all relative">
+            <Bell className="h-5 w-5" />
+            <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+          </Link>
+          <Link href="/settings" className="w-10 h-10 flex items-center justify-center rounded-xl text-gray-500 hover:bg-gray-50 transition-all">
+            <Settings className="h-5 w-5" />
+          </Link>
         </div>
+
+        <Link href="/settings" className="flex items-center space-x-3 p-1.5 hover:bg-gray-50 rounded-2xl transition-all">
+          <div className="w-9 h-9 shrink-0">
+            <img src="/screenerx-logo.png" alt="ScreenerX Logo" className="w-full h-full object-contain" />
+          </div>
+          <div className="text-left hidden lg:block">
+            <p className="text-sm font-bold text-[#0B1B42] leading-none">Admin User</p>
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">HR Manager</p>
+          </div>
+          <ChevronDown className="w-4 h-4 text-gray-400" />
+        </Link>
       </div>
     </header>
   );
