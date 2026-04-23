@@ -4,6 +4,9 @@ import { motion } from 'framer-motion';
 import { Upload, Globe, Code, ChevronRight, Zap, CheckCircle2, ArrowLeft, MapPin, Briefcase, Star, FileText, X, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import clsx from 'clsx';
+import { useParams } from 'next/navigation';
+import { api } from '../../../lib/api';
+import { Job } from '../../../store/slices/jobsSlice';
 
 const jobData = {
   id: '1',
@@ -51,11 +54,26 @@ const STEPS: Step[] = ['info', 'cv', 'questions', 'review'];
 const STEP_LABELS = ['Your Info', 'Upload CV', 'AI Questions', 'Review'];
 
 export default function ApplyPage() {
+  const { jobId } = useParams();
+  const [job, setJob] = useState<Job | null>(null);
   const [step, setStep] = useState<Step>('info');
   const [submitted, setSubmitted] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const fetchJob = async () => {
+      try {
+        const response = await api.get(`/jobs/${jobId}`);
+        setJob(response.data.data.job);
+      } catch (err) {
+        console.error('Failed to fetch job details:', err);
+      }
+    };
+    if (jobId) fetchJob();
+  }, [jobId]);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -66,6 +84,24 @@ export default function ApplyPage() {
     github: '',
     answers: { q1: '', q2: '' } as Record<string, string>,
   });
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    try {
+      await api.post('/applicants/ingest', {
+        jobId,
+        name: `${formData.firstName} ${formData.lastName}`,
+        email: formData.email,
+        resumeUrl: uploadedFile ? `https://mock-storage.com/${uploadedFile.name}` : ''
+      });
+      setSubmitted(true);
+    } catch (err) {
+      console.error('Submission failed:', err);
+      alert('Failed to submit application. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const currentStepIndex = STEPS.indexOf(step);
 
@@ -137,17 +173,17 @@ export default function ApplyPage() {
         {/* Left: Job Info */}
         <div className="lg:col-span-2 space-y-5">
           <div className="bg-white border border-[#E4E8EF] rounded-2xl p-6 shadow-sm">
-            <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${jobData.logoGradient} flex items-center justify-center font-bold text-white text-base shadow-lg mb-5`}>
-              {jobData.logo}
+            <div className={`w-14 h-14 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center font-bold text-white text-base shadow-lg mb-5`}>
+              {job?.title.charAt(0) || 'J'}
             </div>
-            <h1 className="text-xl font-bold text-[#111827] mb-1">{jobData.title}</h1>
-            <p className="text-[#2563EB] font-semibold text-sm mb-5">{jobData.company}</p>
+            <h1 className="text-xl font-bold text-[#111827] mb-1">{job?.title || 'Loading...'}</h1>
+            <p className="text-[#2563EB] font-semibold text-sm mb-5">Umurava Recruitment</p>
 
             <div className="space-y-2.5 mb-5">
               {[
-                { icon: MapPin, label: jobData.location },
-                { icon: Briefcase, label: `${jobData.type} · ${jobData.department}` },
-                { icon: Star, label: jobData.salary },
+                { icon: MapPin, label: job?.location || 'Remote' },
+                { icon: Briefcase, label: `Full-Time · ${job?.department || 'Engineering'}` },
+                { icon: Star, label: '$120k - $160k' },
               ].map(({ icon: Icon, label }) => (
                 <div key={label} className="flex items-center gap-2 text-sm text-[#6B7280]">
                   <Icon className="w-4 h-4 text-[#9CA3AF] shrink-0" />
@@ -410,9 +446,13 @@ export default function ApplyPage() {
                   <ChevronRight className="w-4 h-4" />
                 </button>
               ) : (
-                <button onClick={() => setSubmitted(true)} className="flex items-center gap-2 px-8 py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl text-sm font-bold hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg shadow-green-500/20">
+                <button 
+                  onClick={handleSubmit} 
+                  disabled={isSubmitting}
+                  className="flex items-center gap-2 px-8 py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl text-sm font-bold hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg shadow-green-500/20 disabled:opacity-70"
+                >
                   <CheckCircle2 className="w-4 h-4" />
-                  Submit Application
+                  {isSubmitting ? 'Submitting...' : 'Submit Application'}
                 </button>
               )}
             </div>

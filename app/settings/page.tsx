@@ -3,11 +3,14 @@
 import { useState } from 'react';
 import { User, Building, Sliders, Key, Shield, Bell, Save } from 'lucide-react';
 import clsx from 'clsx';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/store/store';
 
 type TabType = 'profile' | 'organization' | 'ai' | 'api' | 'notifications' | 'security';
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabType>('profile');
+  const { user, organization } = useSelector((state: RootState) => state.auth);
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8">
@@ -36,8 +39,8 @@ export default function SettingsPage() {
 
         {/* Settings Content Area */}
         <div className="flex-1 space-y-6">
-          {activeTab === 'profile' && <ProfileView />}
-          {activeTab === 'organization' && <OrganizationView />}
+          {activeTab === 'profile' && <ProfileView user={user} />}
+          {activeTab === 'organization' && <OrganizationView organization={organization} />}
           {activeTab === 'ai' && <AiPreferencesView />}
           {activeTab === 'api' && <ApiIntegrationsView />}
           {activeTab === 'notifications' && <NotificationsView />}
@@ -68,40 +71,42 @@ function TabButton({ id, icon: Icon, label, activeTab, onClick }: any) {
   );
 }
 
-function ProfileView() {
+function ProfileView({ user }: any) {
+  const [firstName, lastName] = user?.full_name?.split(' ') || ['', ''];
+
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
       <h2 className="text-xl font-bold text-[#0B1B42] mb-6 border-b border-gray-100 pb-4">Personal Information</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         <div>
           <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">First Name</label>
-          <input type="text" defaultValue="Alex" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+          <input type="text" defaultValue={firstName} className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
         </div>
         <div>
           <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Last Name</label>
-          <input type="text" defaultValue="Thompson" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+          <input type="text" defaultValue={lastName} className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
         </div>
         <div className="md:col-span-2">
           <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Email Address</label>
-          <input type="email" defaultValue="alex.t@umurava.africa" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+          <input type="email" defaultValue={user?.email} className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
         </div>
         <div className="md:col-span-2">
           <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Role / Title</label>
-          <input type="text" defaultValue="Senior Recruiter" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+          <input type="text" defaultValue={user?.role} className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
         </div>
       </div>
     </div>
   );
 }
 
-function OrganizationView() {
+function OrganizationView({ organization }: any) {
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
       <h2 className="text-xl font-bold text-[#0B1B42] mb-6 border-b border-gray-100 pb-4">Organization Profile</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         <div className="md:col-span-2">
           <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Company Name</label>
-          <input type="text" defaultValue="Umurava" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+          <input type="text" defaultValue={organization?.name} className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
         </div>
         <div>
           <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Industry</label>
@@ -120,8 +125,8 @@ function OrganizationView() {
           </select>
         </div>
         <div className="md:col-span-2">
-          <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Website</label>
-          <input type="url" defaultValue="https://umurava.africa" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+          <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Domain / Website</label>
+          <input type="url" defaultValue={organization?.domain || ''} placeholder="e.g. company.com" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
         </div>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { Bell, CheckCircle, Clock, AlertTriangle, Calendar, UserPlus } from 'lucide-react';
+import NoData from '@/components/shared/NoData';
 
 export default function NotificationsPage() {
   const notifications = [
@@ -50,29 +51,39 @@ export default function NotificationsPage() {
           </h1>
           <p className="text-gray-500 mt-2">Stay updated on your recruitment pipelines and AI insights.</p>
         </div>
-        <button className="text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors">
-          Mark all as read
-        </button>
+        {notifications.length > 0 && (
+          <button className="text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors">
+            Mark all as read
+          </button>
+        )}
       </div>
 
       <div className="space-y-4">
-        {notifications.map((notif) => (
-          <div key={notif.id} className={`p-6 border rounded-xl flex items-start space-x-4 transition-colors ${notif.read ? 'bg-white border-gray-200' : 'bg-blue-50 border-blue-100'}`}>
-            <div className={`p-3 rounded-lg shrink-0 ${notif.read ? 'bg-gray-100 text-gray-500' : 'bg-white text-blue-600 shadow-sm'}`}>
-              <notif.icon className="w-6 h-6" />
-            </div>
-            <div className="flex-1">
-              <div className="flex justify-between items-start mb-1">
-                <h3 className={`font-bold text-base ${notif.read ? 'text-gray-700' : 'text-[#0B1B42]'}`}>{notif.title}</h3>
-                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">{notif.time}</span>
+        {notifications.length === 0 ? (
+          <NoData 
+            icon={Bell}
+            title="All caught up!"
+            description="You don't have any new notifications at the moment. We'll alert you when there's activity."
+          />
+        ) : (
+          notifications.map((notif) => (
+            <div key={notif.id} className={`p-6 border rounded-xl flex items-start space-x-4 transition-colors ${notif.read ? 'bg-white border-gray-200' : 'bg-blue-50 border-blue-100'}`}>
+              <div className={`p-3 rounded-lg shrink-0 ${notif.read ? 'bg-gray-100 text-gray-500' : 'bg-white text-blue-600 shadow-sm'}`}>
+                <notif.icon className="w-6 h-6" />
               </div>
-              <p className={`text-sm ${notif.read ? 'text-gray-500' : 'text-gray-700'}`}>{notif.message}</p>
+              <div className="flex-1">
+                <div className="flex justify-between items-start mb-1">
+                  <h3 className={`font-bold text-base ${notif.read ? 'text-gray-700' : 'text-[#0B1B42]'}`}>{notif.title}</h3>
+                  <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">{notif.time}</span>
+                </div>
+                <p className={`text-sm ${notif.read ? 'text-gray-500' : 'text-gray-700'}`}>{notif.message}</p>
+              </div>
+              {!notif.read && (
+                <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 shrink-0"></div>
+              )}
             </div>
-            {!notif.read && (
-              <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 shrink-0"></div>
-            )}
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );

@@ -3,7 +3,11 @@ import { motion } from 'framer-motion';
 import { Download, Users, CheckCircle, Clock, Briefcase, ChevronRight, ChevronLeft, Sparkles, Calendar, UserPlus, Lightbulb, Plus, Terminal, Palette, ArrowUpRight } from 'lucide-react';
 import clsx from 'clsx';
 import Link from 'next/link';
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchJobs } from '../../store/slices/jobsSlice';
+import { fetchApplicants } from '../../store/slices/applicantsSlice';
+import { AppDispatch, RootState } from '../../store/store';
 
 export default function Dashboard() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -18,12 +22,34 @@ export default function Dashboard() {
     }
   };
 
+  const dispatch = useDispatch<AppDispatch>();
+  const { list: jobs } = useSelector((state: RootState) => state.jobs);
+  const { list: applicants } = useSelector((state: RootState) => state.applicants);
+  const { user } = useSelector((state: RootState) => state.auth);
+
+  useEffect(() => {
+    dispatch(fetchJobs());
+    dispatch(fetchApplicants());
+  }, [dispatch]);
+
+  // Aggregate stats
+  const totalApplicants = applicants.length;
+  const activeJobsCount = jobs.length;
+  
+  // Calculate avg match score (ignoring nulls)
+  const scoredApplicants = applicants.filter(a => a.match_score !== null);
+  const avgMatchScore = scoredApplicants.length > 0 
+    ? Math.round(scoredApplicants.reduce((sum, a) => sum + (a.match_score || 0), 0) / scoredApplicants.length)
+    : 0;
+
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8">
       {/* Header section */}
       <div className="flex justify-between items-end">
         <div>
-          <h1 className="text-3xl font-bold text-[#0B1B42]">Recruitment Dashboard</h1>
+          <h1 className="text-3xl font-bold text-[#0B1B42]">
+            Welcome back, {user?.full_name?.split(' ')[0] || 'Admin'}!
+          </h1>
           <p className="text-gray-500 mt-2">Intelligence-driven oversight for your active recruitment funnels.</p>
         </div>
         <button className="flex items-center px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-[#0B1B42] hover:bg-gray-50 transition-all shadow-sm">
@@ -34,10 +60,10 @@ export default function Dashboard() {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <StatCard icon={Users} title="TOTAL APPLICANTS" value="1,284" trend="+12%" positive={true} />
-        <StatCard icon={CheckCircle} title="AVG. MATCH SCORE" value="84%" trend="+5%" positive={true} />
+        <StatCard icon={Users} title="TOTAL APPLICANTS" value={totalApplicants.toString()} trend="+12%" positive={true} />
+        <StatCard icon={CheckCircle} title="AVG. MATCH SCORE" value={`${avgMatchScore}%`} trend="+5%" positive={true} />
         <StatCard icon={Clock} title="TIME TO SHORTLIST" value="4.2 Days" trend="-2d" positive={true} />
-        <StatCard icon={Briefcase} title="ACTIVE JOBS" value="12" />
+        <StatCard icon={Briefcase} title="ACTIVE JOBS" value={activeJobsCount.toString()} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -69,15 +95,25 @@ export default function Dashboard() {
             className="flex space-x-6 overflow-x-auto pb-4 custom-scrollbar scroll-smooth no-scrollbar"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
-            {[
-              { title: "Senior AI Engineer", dept: "Tech & Infrastructure · Remote", score: 92, apps: 24, priority: "High" },
-              { title: "Product Designer", dept: "User Experience · Kigali", score: 78, apps: 8, priority: "Normal" },
-              { title: "Backend Developer", dept: "Core Platform · Remote", score: 88, apps: 15, priority: "High" },
-            ].map((job, i) => (
-              <div key={i} className="min-w-[360px]">
-                <JobCard {...job} />
+            {jobs.length === 0 ? (
+              <div className="flex-1 min-h-[160px] flex items-center justify-center bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
+                <div className="text-center p-6">
+                  <p className="text-gray-400 font-medium">No active positions yet</p>
+                </div>
               </div>
-            ))}
+            ) : (
+              jobs.slice(0, 5).map((job) => (
+                <div key={job.id} className="min-w-[360px]">
+                  <JobCard 
+                    title={job.title} 
+                    dept={`${job.department} · ${job.location}`} 
+                    score="--" 
+                    apps={job.applicant_count || 0} 
+                    priority={job.priority} 
+                  />
+                </div>
+              ))
+            )}
           </div>
 
           {/* AI Insight Widget */}
@@ -88,7 +124,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <h3 className="text-lg font-bold">AI Recruiter Assistant</h3>
-                <p className="text-blue-200 text-sm mt-1 max-w-md">Our intelligence engine has screened <span className="text-white font-bold">142 resumes</span> today. Found 12 high-confidence matches across all active roles.</p>
+                <p className="text-blue-200 text-sm mt-1 max-w-md">Our intelligence engine has tracked <span className="text-white font-bold">{totalApplicants} resumes</span>. Found {scoredApplicants.filter(a => a.match_score && a.match_score >= 90).length} high-confidence matches across all active roles.</p>
               </div>
             </div>
             <Link href="/shortlist" className="px-6 py-3 bg-white text-[#0B1B42] rounded-xl text-sm font-bold hover:bg-gray-50 transition-all whitespace-nowrap">
@@ -166,7 +202,7 @@ function JobCard({ title, dept, score, apps, priority }: any) {
         </div>
         <span className={clsx(
           "text-[10px] font-bold px-2.5 py-1 rounded-full tracking-wider uppercase",
-          priority === 'High' ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-600"
+          priority === 'HIGH' ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-600"
         )}>
           {priority} Priority
         </span>

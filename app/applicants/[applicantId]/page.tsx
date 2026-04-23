@@ -2,13 +2,44 @@
 import { useParams } from 'next/navigation';
 import { ArrowLeft, Mail, Phone, MapPin, Download, CheckCircle2, AlertTriangle, Briefcase, GraduationCap, Link as LinkIcon, Calendar, X, Clock, Video } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { api } from '../../../../lib/api';
+import { Applicant } from '../../../../store/slices/applicantsSlice';
+import { Sparkles } from 'lucide-react';
 
 export default function CandidateProfilePage() {
   const params = useParams();
   const applicantId = params.applicantId as string;
+  const [applicant, setApplicant] = useState<Applicant | null>(null);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [scheduleSuccess, setScheduleSuccess] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  useEffect(() => {
+    const fetchApplicant = async () => {
+      try {
+        const response = await api.get(`/applicants/${applicantId}`);
+        setApplicant(response.data.data.applicant);
+      } catch (err) {
+        console.error('Failed to fetch applicant details:', err);
+      }
+    };
+    if (applicantId) fetchApplicant();
+  }, [applicantId]);
+
+  const handleTriggerAnalysis = async () => {
+    try {
+      setIsAnalyzing(true);
+      const response = await api.post(`/applicants/${applicantId}/analyze`);
+      setApplicant(response.data.data.analysis); // analysis returned is the updated applicant
+      alert('AI Analysis Complete!');
+    } catch (err) {
+      console.error('AI Analysis failed:', err);
+      alert('AI Analysis failed. Please try again.');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   const handleSchedule = (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,16 +59,23 @@ export default function CandidateProfilePage() {
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <div className="flex items-center space-x-4">
-             <div className="w-10 h-10 bg-[#0B1B42] text-white rounded-full flex items-center justify-center font-bold text-lg">A</div>
+             <div className="w-10 h-10 bg-[#0B1B42] text-white rounded-full flex items-center justify-center font-bold text-lg">
+               {applicant?.name.charAt(0) || 'A'}
+             </div>
              <div>
-               <h1 className="text-xl font-bold text-[#0B1B42]">Dr. Aris Thorne</h1>
-               <p className="text-xs text-gray-500 mt-0.5">Senior ML Infrastructure Engineer @ DeepMind</p>
+               <h1 className="text-xl font-bold text-[#0B1B42]">{applicant?.name || 'Loading...'}</h1>
+               <p className="text-xs text-gray-500 mt-0.5">{applicant?.jobs?.title || 'Applicant'}</p>
              </div>
           </div>
         </div>
         <div className="flex space-x-3">
-          <button className="px-4 py-2 bg-white border border-red-200 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors shadow-sm">
-             Reject
+          <button 
+            onClick={handleTriggerAnalysis}
+            disabled={isAnalyzing}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm flex items-center disabled:opacity-50"
+          >
+            <Sparkles className={clsx("w-4 h-4 mr-2", isAnalyzing && "animate-spin")} />
+            {isAnalyzing ? 'Analyzing...' : 'Run AI Analysis'}
           </button>
           <button 
             onClick={() => setIsScheduleModalOpen(true)}
@@ -55,7 +93,7 @@ export default function CandidateProfilePage() {
           <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
              <div className="flex justify-between items-center mb-6">
                 <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider">ScreenerX AI Match</h2>
-                <span className="text-3xl font-light text-green-500">98%</span>
+                <span className="text-3xl font-light text-green-500">{applicant?.match_score || '--'}%</span>
              </div>
 
              <div className="space-y-6">
@@ -64,15 +102,15 @@ export default function CandidateProfilePage() {
                    <CheckCircle2 className="w-4 h-4 mr-1" /> Core Strengths
                  </span>
                  <ul className="space-y-3">
-                   <li className="text-sm text-gray-700 bg-green-50/50 p-2 rounded border border-green-100">
-                     Pioneered scaling protocols for GPT-3 production environments.
-                   </li>
-                   <li className="text-sm text-gray-700 bg-green-50/50 p-2 rounded border border-green-100">
-                     Expertise in high-throughput low-latency inference.
-                   </li>
-                   <li className="text-sm text-gray-700 bg-green-50/50 p-2 rounded border border-green-100">
-                     Direct experience with requested tech stack: Python, PyTorch, Kubernetes.
-                   </li>
+                   {applicant?.ai_analysis?.[0]?.strengths?.length ? (
+                     applicant.ai_analysis[0].strengths.map((strength: string, i: number) => (
+                       <li key={i} className="text-sm text-gray-700 bg-green-50/50 p-2 rounded border border-green-100">
+                         {strength}
+                       </li>
+                     ))
+                   ) : (
+                     <li className="text-xs text-gray-400 italic">No strengths identified yet.</li>
+                   )}
                  </ul>
                </div>
 
@@ -81,15 +119,21 @@ export default function CandidateProfilePage() {
                    <AlertTriangle className="w-4 h-4 mr-1" /> Potential Gaps
                  </span>
                  <ul className="space-y-3">
-                   <li className="text-sm text-gray-700 bg-amber-50/50 p-2 rounded border border-amber-100">
-                     Limited experience in customer-facing product management.
-                   </li>
+                   {applicant?.ai_analysis?.[0]?.gaps?.length ? (
+                     applicant.ai_analysis[0].gaps.map((gap: string, i: number) => (
+                       <li key={i} className="text-sm text-gray-700 bg-amber-50/50 p-2 rounded border border-amber-100">
+                         {gap}
+                       </li>
+                     ))
+                   ) : (
+                     <li className="text-xs text-gray-400 italic">No gaps identified yet.</li>
+                   )}
                  </ul>
                </div>
 
                <div className="pt-4 border-t border-gray-100">
                  <p className="text-xs text-indigo-800 italic bg-indigo-50 p-3 rounded-lg border border-indigo-100 leading-relaxed">
-                   "Highly recommended for core architectural leadership. Matches 10/10 of your non-negotiables for the Senior AI Engineer role."
+                   "{applicant?.ai_analysis?.[0]?.recommendation_summary || 'Trigger AI Analysis to get a recommendation summary for this candidate.'}"
                  </p>
                </div>
              </div>
@@ -99,7 +143,7 @@ export default function CandidateProfilePage() {
              <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Contact & Links</h2>
              <div className="space-y-3">
                 <div className="flex items-center text-sm text-gray-700">
-                  <Mail className="w-4 h-4 text-gray-400 mr-3" /> aris.t@example.com
+                  <Mail className="w-4 h-4 text-gray-400 mr-3" /> {applicant?.email}
                 </div>
                 <div className="flex items-center text-sm text-gray-700">
                   <Phone className="w-4 h-4 text-gray-400 mr-3" /> +1 (555) 019-2834
@@ -132,25 +176,32 @@ export default function CandidateProfilePage() {
                    <span>Experience</span>
                  </div>
                  
-                 <div className="space-y-6 pl-2 border-l-2 border-blue-100 ml-2">
-                    <div className="relative pl-6">
-                      <div className="absolute w-3 h-3 bg-blue-500 rounded-full -left-[7px] top-1.5 ring-4 ring-white"></div>
-                      <h3 className="font-bold text-[#0B1B42]">Senior ML Infrastructure Engineer</h3>
-                      <p className="text-sm text-gray-500 font-medium">DeepMind • 2021 - Present</p>
-                      <p className="text-sm text-gray-700 mt-2 leading-relaxed">
-                        Led a team of 5 engineers to scale distributed training infrastructure for LLMs. Reduced model training time by 40% using custom PyTorch optimizations and Kubernetes scaling logic.
-                      </p>
-                    </div>
+                 {/* For now, we use a mock check. In reality, this would be applicant.experience */}
+                 {true ? ( 
+                   <div className="space-y-6 pl-2 border-l-2 border-blue-100 ml-2">
+                      <div className="relative pl-6">
+                        <div className="absolute w-3 h-3 bg-blue-500 rounded-full -left-[7px] top-1.5 ring-4 ring-white"></div>
+                        <h3 className="font-bold text-[#0B1B42]">Senior ML Infrastructure Engineer</h3>
+                        <p className="text-sm text-gray-500 font-medium">DeepMind • 2021 - Present</p>
+                        <p className="text-sm text-gray-700 mt-2 leading-relaxed">
+                          Led a team of 5 engineers to scale distributed training infrastructure for LLMs. Reduced model training time by 40% using custom PyTorch optimizations and Kubernetes scaling logic.
+                        </p>
+                      </div>
 
-                    <div className="relative pl-6">
-                      <div className="absolute w-3 h-3 bg-gray-300 rounded-full -left-[7px] top-1.5 ring-4 ring-white"></div>
-                      <h3 className="font-bold text-[#0B1B42]">Research Engineer</h3>
-                      <p className="text-sm text-gray-500 font-medium">OpenAI • 2018 - 2021</p>
-                      <p className="text-sm text-gray-700 mt-2 leading-relaxed">
-                        Developed data pipeline architecture for early GPT models. Contributed to core inference optimization libraries.
-                      </p>
-                    </div>
-                 </div>
+                      <div className="relative pl-6">
+                        <div className="absolute w-3 h-3 bg-gray-300 rounded-full -left-[7px] top-1.5 ring-4 ring-white"></div>
+                        <h3 className="font-bold text-[#0B1B42]">Research Engineer</h3>
+                        <p className="text-sm text-gray-500 font-medium">OpenAI • 2018 - 2021</p>
+                        <p className="text-sm text-gray-700 mt-2 leading-relaxed">
+                          Developed data pipeline architecture for early GPT models. Contributed to core inference optimization libraries.
+                        </p>
+                      </div>
+                   </div>
+                 ) : (
+                   <div className="bg-gray-50 border border-dashed border-gray-200 rounded-xl p-8 text-center ml-2">
+                     <p className="text-sm text-gray-400">No work experience extracted from resume.</p>
+                   </div>
+                 )}
                </div>
 
                {/* Education */}
@@ -160,14 +211,21 @@ export default function CandidateProfilePage() {
                    <span>Education</span>
                  </div>
                  
-                 <div className="space-y-4 pl-2 border-l-2 border-blue-100 ml-2">
-                    <div className="relative pl-6">
-                      <div className="absolute w-3 h-3 bg-gray-300 rounded-full -left-[7px] top-1.5 ring-4 ring-white"></div>
-                      <h3 className="font-bold text-[#0B1B42]">Ph.D. Computer Science</h3>
-                      <p className="text-sm text-gray-500 font-medium">Stanford University • 2014 - 2018</p>
-                      <p className="text-sm text-gray-700 mt-1">Focus on Distributed Systems and Machine Learning.</p>
-                    </div>
-                 </div>
+                 {/* Mock check for education */}
+                 {true ? (
+                   <div className="space-y-4 pl-2 border-l-2 border-blue-100 ml-2">
+                      <div className="relative pl-6">
+                        <div className="absolute w-3 h-3 bg-gray-300 rounded-full -left-[7px] top-1.5 ring-4 ring-white"></div>
+                        <h3 className="font-bold text-[#0B1B42]">Ph.D. Computer Science</h3>
+                        <p className="text-sm text-gray-500 font-medium">Stanford University • 2014 - 2018</p>
+                        <p className="text-sm text-gray-700 mt-1">Focus on Distributed Systems and Machine Learning.</p>
+                      </div>
+                   </div>
+                 ) : (
+                   <div className="bg-gray-50 border border-dashed border-gray-200 rounded-xl p-8 text-center ml-2">
+                     <p className="text-sm text-gray-400">No education data found.</p>
+                   </div>
+                 )}
                </div>
             </div>
           </div>

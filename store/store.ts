@@ -1,4 +1,7 @@
 import { configureStore, createSlice } from '@reduxjs/toolkit';
+import authReducer from './slices/authSlice';
+import jobsReducer from './slices/jobsSlice';
+import applicantsReducer from './slices/applicantsSlice';
 
 // Placeholder slice — will be replaced with real slices (jobs, applicants, screening)
 const appSlice = createSlice({
@@ -10,7 +13,9 @@ const appSlice = createSlice({
 export const store = configureStore({
   reducer: {
     app: appSlice.reducer,
-    // Add more slices here: jobs, applicants, screening
+    auth: authReducer,
+    jobs: jobsReducer,
+    applicants: applicantsReducer,
   },
 });
 

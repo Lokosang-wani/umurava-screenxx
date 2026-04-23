@@ -1,4 +1,5 @@
-import { Activity, Search, Filter, Download, ArrowLeft, ShieldCheck, Database, FileText, CheckCircle2 } from 'lucide-react';
+import NoData from '@/components/shared/NoData';
+import { Activity, Search, Filter, Download, ArrowLeft, ShieldCheck, Database, FileText, CheckCircle2, ClipboardList } from 'lucide-react';
 import Link from 'next/link';
 
 export default function AuditLogPage() {
@@ -60,28 +61,40 @@ export default function AuditLogPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {auditLogs.map((log) => (
-                <tr key={log.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="p-4">
-                    <div className="flex items-center space-x-3">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${log.bg} ${log.color}`}>
-                        <log.icon className="w-4 h-4" />
-                      </div>
-                      <span className="font-bold text-[#0B1B42]">{log.action}</span>
-                    </div>
-                  </td>
-                  <td className="p-4 text-sm text-gray-700">{log.resource}</td>
-                  <td className="p-4 text-sm text-gray-700">{log.user}</td>
-                  <td className="p-4 text-sm text-gray-500">{log.date}</td>
-                  <td className="p-4">
-                    <span className={`px-2.5 py-1 rounded text-xs font-bold uppercase tracking-wider ${
-                      log.status === 'Success' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
-                    }`}>
-                      {log.status}
-                    </span>
+              {auditLogs.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="p-12 text-center">
+                    <NoData 
+                      icon={ClipboardList}
+                      title="No activity recorded"
+                      description="There are no audit logs available for your organization yet. Activities will appear here as you use the platform."
+                    />
                   </td>
                 </tr>
-              ))}
+              ) : (
+                auditLogs.map((log) => (
+                  <tr key={log.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="p-4">
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${log.bg} ${log.color}`}>
+                          <log.icon className="w-4 h-4" />
+                        </div>
+                        <span className="font-bold text-[#0B1B42]">{log.action}</span>
+                      </div>
+                    </td>
+                    <td className="p-4 text-sm text-gray-700">{log.resource}</td>
+                    <td className="p-4 text-sm text-gray-700">{log.user}</td>
+                    <td className="p-4 text-sm text-gray-500">{log.date}</td>
+                    <td className="p-4">
+                      <span className={`px-2.5 py-1 rounded text-xs font-bold uppercase tracking-wider ${
+                        log.status === 'Success' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+                      }`}>
+                        {log.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

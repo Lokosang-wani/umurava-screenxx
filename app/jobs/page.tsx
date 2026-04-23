@@ -1,35 +1,14 @@
 'use client';
 import { Plus, Briefcase, ChevronRight, Share2, Globe, EyeOff, X, Link2, Lock, Copy, Check, ExternalLink, Sparkles } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
 import clsx from 'clsx';
+import { useEffect, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchJobs, Job } from '../../store/slices/jobsSlice';
+import { AppDispatch, RootState } from '../../store/store';
+import NoData from '@/components/shared/NoData';
 
-const jobs = [
-  {
-    id: '1',
-    title: 'Senior AI Engineer',
-    department: 'Tech & Infrastructure',
-    location: 'Remote',
-    priority: 'HIGH PRIORITY',
-    applicants: 24,
-    matchScore: 92,
-    publicCode: 'SX-9921',
-    publicUrl: 'screenerx.ai/apply/senior-ai-engineer',
-  },
-  {
-    id: '2',
-    title: 'Product Designer',
-    department: 'User Experience',
-    location: 'Kigali, RW',
-    priority: 'REGULAR',
-    applicants: 8,
-    matchScore: 78,
-    publicCode: 'SX-4412',
-    publicUrl: 'screenerx.ai/apply/product-designer',
-  },
-];
-
-function ShareModal({ job, onClose }: { job: typeof jobs[0]; onClose: () => void }) {
+function ShareModal({ job, onClose }: { job: Job; onClose: () => void }) {
   const [isPublic, setIsPublic] = useState(true);
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
@@ -82,8 +61,8 @@ function ShareModal({ job, onClose }: { job: typeof jobs[0]; onClose: () => void
             <div>
               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 block">Application Link</label>
               <div className="flex items-center bg-gray-50 border border-gray-200 rounded-xl overflow-hidden">
-                <p className="flex-1 px-4 py-3 text-sm text-gray-700 truncate font-mono">{job.publicUrl}</p>
-                <button onClick={() => copy(job.publicUrl, 'link')} className="px-4 py-3 text-blue-600 hover:bg-blue-50 transition-colors">
+                <p className="flex-1 px-4 py-3 text-sm text-gray-700 truncate font-mono">{job.public_url || 'screenerx.ai/apply/' + job.id}</p>
+                <button onClick={() => copy(job.public_url || '', 'link')} className="px-4 py-3 text-blue-600 hover:bg-blue-50 transition-colors">
                   {copiedLink ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 </button>
               </div>
@@ -92,8 +71,8 @@ function ShareModal({ job, onClose }: { job: typeof jobs[0]; onClose: () => void
             <div>
               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 block">Access Code</label>
               <div className="flex items-center justify-between bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
-                <p className="text-2xl font-bold text-[#0B1B42] tracking-widest font-mono">{job.publicCode}</p>
-                <button onClick={() => copy(job.publicCode, 'code')} className="text-blue-600">
+                <p className="text-2xl font-bold text-[#0B1B42] tracking-widest font-mono">{job.public_code}</p>
+                <button onClick={() => copy(job.public_code, 'code')} className="text-blue-600">
                   {copiedCode ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 </button>
               </div>
@@ -106,7 +85,13 @@ function ShareModal({ job, onClose }: { job: typeof jobs[0]; onClose: () => void
 }
 
 export default function JobsPage() {
-  const [shareJob, setShareJob] = useState<typeof jobs[0] | null>(null);
+  const [shareJob, setShareJob] = useState<Job | null>(null);
+  const dispatch = useDispatch<AppDispatch>();
+  const { list: jobs, status } = useSelector((state: RootState) => state.jobs);
+
+  useEffect(() => {
+    dispatch(fetchJobs());
+  }, [dispatch]);
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8">
@@ -123,41 +108,51 @@ export default function JobsPage() {
 
       <div className="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
         <div className="divide-y divide-gray-50">
-          {jobs.map(job => (
-            <div key={job.id} className="p-8 hover:bg-gray-50 transition-all flex items-center justify-between group">
-              <div className="flex items-center space-x-6">
-                <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shrink-0">
-                  <Briefcase className="w-8 h-8" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-[#0B1B42] text-xl">{job.title}</h3>
-                  <p className="text-sm text-gray-500 mt-1">{job.department} · {job.location}</p>
-                  <div className="flex items-center space-x-3 mt-4">
-                    <span className={clsx(
-                      "text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider",
-                      job.priority === 'HIGH PRIORITY' ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-600"
-                    )}>{job.priority}</span>
-                    <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-blue-50 text-blue-700 uppercase tracking-wider">{job.applicants} Applicants</span>
+          {jobs.length === 0 ? (
+            <div className="p-8">
+              <NoData 
+                icon={Briefcase}
+                title="No active positions"
+                description="You haven't created any job openings yet. Start your recruitment process by creating your first position."
+              />
+            </div>
+          ) : (
+            jobs.map(job => (
+              <div key={job.id} className="p-8 hover:bg-gray-50 transition-all flex items-center justify-between group">
+                <div className="flex items-center space-x-6">
+                  <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shrink-0">
+                    <Briefcase className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-[#0B1B42] text-xl">{job.title}</h3>
+                    <p className="text-sm text-gray-500 mt-1">{job.department} · {job.location}</p>
+                    <div className="flex items-center space-x-3 mt-4">
+                      <span className={clsx(
+                        "text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider",
+                        job.priority === 'HIGH' ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-600"
+                      )}>{job.priority}</span>
+                      <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-blue-50 text-blue-700 uppercase tracking-wider">{job.applicant_count || 0} Applicants</span>
+                    </div>
                   </div>
                 </div>
+                <div className="flex items-center space-x-6">
+                   <div className="text-right hidden sm:block">
+                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Match Score</p>
+                     <p className="text-2xl font-bold text-green-600">--%</p>
+                   </div>
+                   <button
+                     onClick={() => setShareJob(job)}
+                     className="p-3 bg-white border border-gray-100 rounded-2xl text-gray-400 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm"
+                   >
+                     <Share2 className="w-5 h-5" />
+                   </button>
+                   <Link href={`/jobs/${job.id}`} className="p-3 bg-white border border-gray-100 rounded-2xl text-gray-400 hover:text-blue-600 transition-all shadow-sm">
+                     <ChevronRight className="w-6 h-6" />
+                   </Link>
+                </div>
               </div>
-              <div className="flex items-center space-x-6">
-                 <div className="text-right hidden sm:block">
-                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Match Score</p>
-                   <p className="text-2xl font-bold text-green-600">{job.matchScore}%</p>
-                 </div>
-                 <button
-                   onClick={() => setShareJob(job)}
-                   className="p-3 bg-white border border-gray-100 rounded-2xl text-gray-400 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm"
-                 >
-                   <Share2 className="w-5 h-5" />
-                 </button>
-                 <Link href={`/jobs/${job.id}`} className="p-3 bg-white border border-gray-100 rounded-2xl text-gray-400 hover:text-blue-600 transition-all shadow-sm">
-                   <ChevronRight className="w-6 h-6" />
-                 </Link>
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 

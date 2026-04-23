@@ -3,6 +3,10 @@ import { motion } from 'framer-motion';
 import { Zap, ArrowRight, Mail, Lock, User, Briefcase, Sparkles, Cpu, Code, Globe, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useDispatch } from 'react-redux';
+import { api } from '../../../lib/api';
+import { setAuthStart, setAuthSuccess, setAuthFailure } from '../../../store/slices/authSlice';
 
 export default function SignUpPage() {
   const [formData, setFormData] = useState({
@@ -11,6 +15,36 @@ export default function SignUpPage() {
     email: '',
     password: ''
   });
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+  const dispatch = useDispatch();
+
+  const handleSignup = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+    dispatch(setAuthStart());
+
+    try {
+      const response = await api.post('/auth/signup', {
+        companyName: formData.company,
+        fullName: formData.name,
+        email: formData.email,
+        password: formData.password
+      });
+      const { token, data } = response.data;
+      
+      dispatch(setAuthSuccess({ user: data.user, organization: data.organization, token }));
+      router.push('/dashboard');
+    } catch (err: any) {
+      const message = err.response?.data?.message || 'Failed to create account. Please try again.';
+      setError(message);
+      dispatch(setAuthFailure(message));
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#FDFDFF] flex items-center justify-center p-6 relative overflow-hidden font-sans">
@@ -129,12 +163,20 @@ export default function SignUpPage() {
                 </p>
               </div>
 
-              <Link href="/dashboard" className="block">
-                <button className="w-full py-5 bg-[#0B1B42] text-white rounded-[1.5rem] font-black text-lg hover:bg-blue-700 transition-all shadow-xl shadow-blue-900/10 active:scale-[0.98] group">
-                  Deploy Account
-                  <ArrowRight className="inline-block ml-3 w-5 h-5 group-hover:translate-x-2 transition-transform" />
-                </button>
-              </Link>
+              {error && (
+                <div className="p-3 bg-red-50 border border-red-100 text-red-600 text-sm font-semibold rounded-xl text-center">
+                  {error}
+                </div>
+              )}
+
+              <button 
+                onClick={handleSignup}
+                disabled={isLoading}
+                className="w-full py-5 bg-[#0B1B42] text-white rounded-[1.5rem] font-black text-lg hover:bg-blue-700 transition-all shadow-xl shadow-blue-900/10 active:scale-[0.98] group disabled:opacity-70"
+              >
+                {isLoading ? 'Deploying...' : 'Deploy Account'}
+                {!isLoading && <ArrowRight className="inline-block ml-3 w-5 h-5 group-hover:translate-x-2 transition-transform" />}
+              </button>
 
               <p className="text-center text-sm font-medium text-gray-400">
                 Already have an account? <Link href="/auth/signin" className="text-blue-600 font-black hover:underline">Sign In</Link>

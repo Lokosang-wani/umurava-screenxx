@@ -226,73 +226,82 @@ export default function CalendarPage() {
             <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-6">Upcoming Agenda</h2>
             
             <div className="space-y-8">
-              {interviews.map((inv, idx) => {
-                const isNewDate = idx === 0 || interviews[idx-1].date !== inv.date;
-                return (
-                  <div key={inv.id} className="relative">
-                    {isNewDate && (
-                      <div className="flex items-center space-x-4 mb-4">
-                        <div className="h-px bg-gray-100 flex-1"></div>
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">{inv.date}</span>
-                        <div className="h-px bg-gray-100 flex-1"></div>
-                      </div>
-                    )}
-                    
-                    <div 
-                      onClick={() => setSelectedInterview(inv)}
-                      className="bg-gray-50/50 border border-gray-100 rounded-xl p-4 hover:border-blue-200 transition-colors group cursor-pointer"
-                    >
-                      <div className="flex justify-between items-start mb-3">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 rounded-lg bg-[#0B1B42] text-white flex items-center justify-center font-bold text-xs shadow-sm">
-                            {inv.avatar}
+              {interviews.length === 0 ? (
+                <div className="py-12 text-center">
+                  <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Clock className="w-6 h-6 text-gray-300" />
+                  </div>
+                  <p className="text-sm text-gray-500">No interviews scheduled for this period.</p>
+                </div>
+              ) : (
+                interviews.map((inv, idx) => {
+                  const isNewDate = idx === 0 || interviews[idx-1].date !== inv.date;
+                  return (
+                    <div key={inv.id} className="relative">
+                      {isNewDate && (
+                        <div className="flex items-center space-x-4 mb-4">
+                          <div className="h-px bg-gray-100 flex-1"></div>
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">{inv.date}</span>
+                          <div className="h-px bg-gray-100 flex-1"></div>
+                        </div>
+                      )}
+                      
+                      <div 
+                        onClick={() => setSelectedInterview(inv)}
+                        className="bg-gray-50/50 border border-gray-100 rounded-xl p-4 hover:border-blue-200 transition-colors group cursor-pointer"
+                      >
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 rounded-lg bg-[#0B1B42] text-white flex items-center justify-center font-bold text-xs shadow-sm">
+                              {inv.avatar}
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-bold text-[#0B1B42] group-hover:text-blue-600 transition-colors">{inv.candidate}</h4>
+                              <p className="text-[10px] text-gray-500 font-medium">{inv.role}</p>
+                            </div>
                           </div>
-                          <div>
-                            <h4 className="text-sm font-bold text-[#0B1B42] group-hover:text-blue-600 transition-colors">{inv.candidate}</h4>
-                            <p className="text-[10px] text-gray-500 font-medium">{inv.role}</p>
+                          <button className="text-gray-400 hover:text-gray-600">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        <div className="space-y-2 mb-4">
+                          <div className="flex items-center text-[10px] text-gray-600">
+                            <Clock className="w-3 h-3 mr-2 text-gray-400" />
+                            {inv.time}
+                          </div>
+                          <div className="flex items-center text-[10px] text-gray-600">
+                            <Users className="w-3 h-3 mr-2 text-gray-400" />
+                            {inv.type}
                           </div>
                         </div>
-                        <button className="text-gray-400 hover:text-gray-600">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </button>
-                      </div>
 
-                      <div className="space-y-2 mb-4">
-                        <div className="flex items-center text-[10px] text-gray-600">
-                          <Clock className="w-3 h-3 mr-2 text-gray-400" />
-                          {inv.time}
+                        <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                          <span className={clsx(
+                            "px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider flex items-center space-x-1",
+                            inv.scheduledBy === 'AI' 
+                              ? "bg-blue-100 text-blue-700" 
+                              : "bg-purple-100 text-purple-700"
+                          )}>
+                            {inv.scheduledBy === 'AI' ? (
+                              <>
+                                <Sparkles className="w-2 h-2 mr-1" />
+                                AI Scheduled
+                              </>
+                            ) : (
+                              <>
+                                <User className="w-2 h-2 mr-1" />
+                                Scheduled by You
+                              </>
+                            )}
+                          </span>
+                          <button className="text-[9px] font-bold text-blue-600 hover:underline">View</button>
                         </div>
-                        <div className="flex items-center text-[10px] text-gray-600">
-                          <Users className="w-3 h-3 mr-2 text-gray-400" />
-                          {inv.type}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                        <span className={clsx(
-                          "px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider flex items-center space-x-1",
-                          inv.scheduledBy === 'AI' 
-                            ? "bg-blue-100 text-blue-700" 
-                            : "bg-purple-100 text-purple-700"
-                        )}>
-                          {inv.scheduledBy === 'AI' ? (
-                            <>
-                              <Sparkles className="w-2 h-2 mr-1" />
-                              AI Scheduled
-                            </>
-                          ) : (
-                            <>
-                              <User className="w-2 h-2 mr-1" />
-                              Scheduled by You
-                            </>
-                          )}
-                        </span>
-                        <button className="text-[9px] font-bold text-blue-600 hover:underline">View</button>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </div>
         </div>

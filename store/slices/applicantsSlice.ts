@@ -1,0 +1,53 @@
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { api } from '../../lib/api';
+
+export interface Applicant {
+  id: string;
+  job_id: string;
+  name: string;
+  email: string;
+  status: string;
+  match_score: number | null;
+  applied_at: string;
+  jobs?: { title: string };
+  ai_analysis?: any[];
+}
+
+export interface ApplicantsState {
+  list: Applicant[];
+  status: 'idle' | 'loading' | 'succeeded' | 'failed';
+  error: string | null;
+}
+
+const initialState: ApplicantsState = {
+  list: [],
+  status: 'idle',
+  error: null,
+};
+
+export const fetchApplicants = createAsyncThunk('applicants/fetchApplicants', async () => {
+  const response = await api.get('/applicants');
+  return response.data.data.applicants;
+});
+
+const applicantsSlice = createSlice({
+  name: 'applicants',
+  initialState,
+  reducers: {},
+  extraReducers(builder) {
+    builder
+      .addCase(fetchApplicants.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(fetchApplicants.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.list = action.payload;
+      })
+      .addCase(fetchApplicants.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.error.message || 'Failed to fetch applicants';
+      });
+  },
+});
+
+export default applicantsSlice.reducer;

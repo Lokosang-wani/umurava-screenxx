@@ -3,14 +3,42 @@ import { ArrowLeft, Sparkles, CheckCircle2, ChevronDown, X, MessageSquareHeart }
 import Link from 'next/link';
 import clsx from 'clsx';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useDispatch } from 'react-redux';
+import { api } from '../../../lib/api';
+import { fetchJobs } from '../../../store/slices/jobsSlice';
+import { AppDispatch } from '../../../store/store';
 
 export default function CreateJob() {
+  const router = useRouter();
+  const dispatch = useDispatch<AppDispatch>();
   const [techSkills, setTechSkills] = useState(['Python', 'PyTorch', 'LLMs']);
-  const [softSkills, setSoftSkills] = useState(['Leadership', 'Critical Thinking']);
   const [currentStep, setCurrentStep] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [jobData, setJobData] = useState({
+    title: '',
+    department: 'Engineering',
+    location: 'Remote',
+    priority: 'REGULAR',
+    is_public: true
+  });
 
   const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, 4));
   const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
+
+  const handlePublish = async () => {
+    try {
+      setIsLoading(true);
+      await api.post('/jobs', jobData);
+      dispatch(fetchJobs());
+      router.push('/jobs');
+    } catch (error) {
+      console.error('Failed to create job:', error);
+      alert('Failed to create job');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="bg-gray-50 min-h-screen pb-12">
@@ -45,21 +73,31 @@ export default function CreateJob() {
                  <p className="text-sm text-gray-500 mb-6 mt-1">Define the core identity of the role</p>
                  
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                   <div>
-                     <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Job Title</label>
-                     <input type="text" placeholder="e.g. Senior Machine Learning Engineer" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-                   </div>
-                   <div>
-                     <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Department</label>
-                     <div className="relative">
-                       <select className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm appearance-none focus:ring-2 focus:ring-blue-500 outline-none bg-white">
-                         <option>Engineering</option>
-                         <option>Product</option>
-                         <option>Design</option>
-                       </select>
-                       <ChevronDown className="w-4 h-4 text-gray-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-                     </div>
-                   </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Job Title</label>
+                      <input 
+                        type="text" 
+                        value={jobData.title}
+                        onChange={(e) => setJobData({...jobData, title: e.target.value})}
+                        placeholder="e.g. Senior Machine Learning Engineer" 
+                        className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Department</label>
+                      <div className="relative">
+                        <select 
+                          value={jobData.department}
+                          onChange={(e) => setJobData({...jobData, department: e.target.value})}
+                          className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm appearance-none focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                        >
+                          <option value="Engineering">Engineering</option>
+                          <option value="Product">Product</option>
+                          <option value="Design">Design</option>
+                        </select>
+                        <ChevronDown className="w-4 h-4 text-gray-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      </div>
+                    </div>
                  </div>
                  
                  <div>
@@ -81,14 +119,14 @@ export default function CreateJob() {
                        <span className="text-sm text-gray-500">years minimum</span>
                      </div>
                    </div>
-                   <div>
-                     <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Work Location</label>
-                     <div className="flex bg-gray-50 p-1 rounded-lg border border-gray-200">
-                       <button className="flex-1 py-1.5 text-sm font-medium bg-[#0B1B42] text-white rounded shadow-sm">Remote</button>
-                       <button className="flex-1 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900">Hybrid</button>
-                       <button className="flex-1 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900">On-site</button>
-                     </div>
-                   </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Work Location</label>
+                      <div className="flex bg-gray-50 p-1 rounded-lg border border-gray-200">
+                        <button onClick={() => setJobData({...jobData, location: 'Remote'})} className={clsx("flex-1 py-1.5 text-sm font-medium rounded shadow-sm transition-colors", jobData.location === 'Remote' ? "bg-[#0B1B42] text-white" : "text-gray-600 hover:text-gray-900")}>Remote</button>
+                        <button onClick={() => setJobData({...jobData, location: 'Hybrid'})} className={clsx("flex-1 py-1.5 text-sm font-medium rounded shadow-sm transition-colors", jobData.location === 'Hybrid' ? "bg-[#0B1B42] text-white" : "text-gray-600 hover:text-gray-900")}>Hybrid</button>
+                        <button onClick={() => setJobData({...jobData, location: 'On-site'})} className={clsx("flex-1 py-1.5 text-sm font-medium rounded shadow-sm transition-colors", jobData.location === 'On-site' ? "bg-[#0B1B42] text-white" : "text-gray-600 hover:text-gray-900")}>On-site</button>
+                      </div>
+                    </div>
                  </div>
 
                  <div className="mb-6">
@@ -128,9 +166,13 @@ export default function CreateJob() {
                       {currentStep === 1 ? 'Continue to Requirements' : 'Continue to AI Setup'}
                     </button>
                   ) : (
-                    <Link href="/jobs" className="px-6 py-2.5 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm">
-                      Publish Job
-                    </Link>
+                    <button 
+                      onClick={handlePublish}
+                      disabled={isLoading}
+                      className="px-6 py-2.5 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm disabled:opacity-70"
+                    >
+                      {isLoading ? 'Publishing...' : 'Publish Job'}
+                    </button>
                   )}
                 </div>
              </div>

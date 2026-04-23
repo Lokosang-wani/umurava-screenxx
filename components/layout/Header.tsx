@@ -1,8 +1,12 @@
 'use client';
-import { Bell, Settings, Search, ChevronDown, User } from 'lucide-react';
+import { Bell, Settings, Search, ChevronDown, User as UserIcon } from 'lucide-react';
 import Link from 'next/link';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../store/store';
 
 export default function Header() {
+  const { user, isLoading } = useSelector((state: RootState) => state.auth);
+
   return (
     <header className="h-20 border-b border-gray-100 bg-white/80 backdrop-blur-md flex items-center justify-between px-8 fixed top-0 right-0 left-64 z-30">
       <div className="flex-1 max-w-xl">
@@ -28,9 +32,25 @@ export default function Header() {
         </div>
 
         <Link href="/settings" className="flex items-center space-x-3 p-1.5 hover:bg-gray-50 rounded-2xl transition-all">
+          <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-[#0B1B42]">
+            <UserIcon className="w-5 h-5" />
+          </div>
           <div className="text-left hidden lg:block">
-            <p className="text-sm font-bold text-[#0B1B42] leading-none">Admin User</p>
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">HR Manager</p>
+            {isLoading ? (
+              <div className="space-y-2">
+                <div className="h-3 w-20 bg-gray-200 animate-pulse rounded"></div>
+                <div className="h-2 w-12 bg-gray-100 animate-pulse rounded"></div>
+              </div>
+            ) : (
+              <>
+                <p className="text-sm font-bold text-[#0B1B42] leading-none">
+                  {user?.full_name || 'Admin User'}
+                </p>
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">
+                  {user?.role || 'HR Manager'}
+                </p>
+              </>
+            )}
           </div>
         </Link>
       </div>
