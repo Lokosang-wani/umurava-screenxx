@@ -1,9 +1,70 @@
 'use client';
 
-import { Users, FileText, FileSpreadsheet, Mail, Link as LinkIcon, Globe2, UploadCloud, ChevronRight, Pause, X, FileArchive, Check, HelpCircle, Sparkles, CheckCircle2, Play } from 'lucide-react';
+import { Users, FileText, FileSpreadsheet, Mail, Link as LinkIcon, UploadCloud, ChevronRight, Pause, X, FileArchive, Check, HelpCircle, Sparkles, CheckCircle2, Play } from 'lucide-react';
 import Link from 'next/link';
+import { useState, useRef, useEffect } from 'react';
+import clsx from 'clsx';
+import { api } from '@/lib/api';
+import { useDispatch, useSelector } from 'react-redux';
+import { AppDispatch, RootState } from '@/store/store';
+import { fetchApplicants } from '@/store/slices/applicantsSlice';
 
 export default function IngestApplicants() {
+  const dispatch = useDispatch<AppDispatch>();
+  const { list: jobs } = useSelector((state: RootState) => state.jobs);
+  const [activeUploads, setActiveUploads] = useState<any[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    const newUpload = {
+      id: Math.random().toString(36).substr(2, 9),
+      name: file.name,
+      progress: 0,
+      status: 'Processing',
+      candidates: Math.floor(Math.random() * 50) + 1,
+      startTime: new Date()
+    };
+
+    setActiveUploads(prev => [newUpload, ...prev]);
+
+    // Simulate AI Screening Progress
+    let progress = 0;
+    const interval = setInterval(async () => {
+      progress += Math.floor(Math.random() * 15) + 5;
+      if (progress >= 100) {
+        progress = 100;
+        clearInterval(interval);
+        
+        // Finalize with real backend call
+        try {
+          await api.post('/applicants/ingest', {
+            jobId: jobs[0]?.id || '', // Default to first job for demo
+            name: file.name.split('.')[0],
+            email: `${file.name.split('.')[0].toLowerCase()}@example.com`,
+            resumeUrl: `https://storage.screenerx.ai/${file.name}`
+          });
+          
+          setActiveUploads(prev => prev.map(u => 
+            u.id === newUpload.id ? { ...u, progress: 100, status: 'Completed' } : u
+          ));
+          dispatch(fetchApplicants());
+        } catch (error) {
+          setActiveUploads(prev => prev.map(u => 
+            u.id === newUpload.id ? { ...u, status: 'Error' } : u
+          ));
+        }
+      } else {
+        setActiveUploads(prev => prev.map(u => 
+          u.id === newUpload.id ? { ...u, progress } : u
+        ));
+      }
+    }, 800);
+  };
+
   return (
     <div className="bg-gray-50 min-h-screen p-8 max-w-7xl mx-auto space-y-8">
       
@@ -43,7 +104,11 @@ export default function IngestApplicants() {
                  <p className="text-xs text-gray-500 text-center">Sync from curated community database</p>
                </button>
                
-               <button className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-green-200 bg-green-50 rounded-xl hover:border-green-400 transition-colors group relative overflow-hidden">
+               <button 
+                 onClick={() => fileInputRef.current?.click()}
+                 className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-green-200 bg-green-50 rounded-xl hover:border-green-400 transition-colors group relative overflow-hidden"
+               >
+                 <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileUpload} accept=".pdf,.docx,.csv" />
                  <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-green-500"></div>
                  <div className="w-12 h-12 bg-green-100 text-green-600 rounded-lg flex items-center justify-center mb-4">
                    <FileText className="w-6 h-6" />
@@ -90,7 +155,10 @@ export default function IngestApplicants() {
              </div>
 
              {/* Drag and Drop Zone */}
-             <div className="bg-blue-50 border-2 border-dashed border-blue-200 rounded-xl p-8 flex flex-col sm:flex-row items-center justify-between">
+             <div 
+              onClick={() => fileInputRef.current?.click()}
+              className="bg-blue-50 border-2 border-dashed border-blue-200 rounded-xl p-8 flex flex-col sm:flex-row items-center justify-between cursor-pointer"
+             >
                 <div className="flex items-center space-x-4 mb-4 sm:mb-0">
                   <div className="p-3 bg-white text-blue-600 rounded-full shadow-sm">
                     <UploadCloud className="w-6 h-6" />
@@ -119,59 +187,37 @@ export default function IngestApplicants() {
              </div>
 
              <div className="space-y-6">
-               
-               {/* Upload Item 1 */}
-               <div className="flex items-center justify-between">
-                 <div className="flex items-center space-x-4 w-full">
-                   <div className="p-3 bg-green-50 text-green-600 rounded-lg shrink-0">
-                     <FileArchive className="w-6 h-6" />
-                   </div>
-                   <div className="flex-1 mr-8">
-                     <div className="flex justify-between items-center mb-2">
-                       <h4 className="font-bold text-[#0B1B42] text-sm">Resumes_Software_Eng_Q3.zip</h4>
-                       <span className="text-xs font-bold text-green-600">72% Processed</span>
-                     </div>
-                     <div className="w-full bg-gray-100 rounded-full h-1.5 mb-2">
-                       <div className="bg-green-500 h-1.5 rounded-full" style={{ width: '72%' }}></div>
-                     </div>
-                     <div className="flex justify-between text-xs text-gray-500">
-                       <span>42 candidates detected</span>
-                       <span>Est. 2 mins remaining</span>
-                     </div>
-                   </div>
-                 </div>
-                 <div className="flex space-x-2 shrink-0">
-                   <button className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded"><Pause className="w-4 h-4" /></button>
-                   <button className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><X className="w-4 h-4" /></button>
-                 </div>
-               </div>
+                
+                {activeUploads.map(upload => (
+                  <div key={upload.id} className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4 w-full">
+                      <div className={clsx("p-3 rounded-lg shrink-0", upload.status === 'Completed' ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600')}>
+                        <FileArchive className="w-6 h-6" />
+                      </div>
+                      <div className="flex-1 mr-8">
+                        <div className="flex justify-between items-center mb-2">
+                          <h4 className="font-bold text-[#0B1B42] text-sm">{upload.name}</h4>
+                          <span className={clsx("text-xs font-bold", upload.status === 'Completed' ? 'text-green-600' : 'text-blue-600')}>
+                            {upload.status === 'Completed' ? 'Completed' : `${upload.progress}% Processed`}
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-1.5 mb-2">
+                          <div className={clsx("h-1.5 rounded-full transition-all duration-300", upload.status === 'Completed' ? 'bg-green-500' : 'bg-blue-500')} style={{ width: `${upload.progress}%` }}></div>
+                        </div>
+                        <div className="flex justify-between text-[10px] text-gray-500 uppercase tracking-widest font-bold">
+                          <span>{upload.candidates} candidates detected</span>
+                          <span>{upload.status === 'Completed' ? 'Live on dashboard' : 'AI Analysis in progress...'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
 
-               <div className="h-px bg-gray-100 w-full"></div>
-
-               {/* Upload Item 2 */}
-               <div className="flex items-center justify-between">
-                 <div className="flex items-center space-x-4 w-full">
-                   <div className="p-3 bg-blue-50 text-blue-600 rounded-lg shrink-0">
-                     <FileSpreadsheet className="w-6 h-6" />
+                {activeUploads.length === 0 && (
+                   <div className="py-8 text-center text-gray-400 text-xs italic border-2 border-dashed border-gray-100 rounded-xl">
+                      No active uploads. Start by dropping files above.
                    </div>
-                   <div className="flex-1 mr-8">
-                     <div className="flex justify-between items-center mb-1">
-                       <h4 className="font-bold text-[#0B1B42] text-sm">Marketing_Lead_Applicants.csv</h4>
-                       <span className="flex items-center text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded uppercase tracking-wider">
-                         <Check className="w-3 h-3 mr-1" /> Completed
-                       </span>
-                     </div>
-                     <div className="flex space-x-4 text-xs text-gray-500 mt-2">
-                       <span>128 candidates imported</span>
-                       <span className="text-green-600 font-medium">• 85 matches found</span>
-                     </div>
-                   </div>
-                 </div>
-                 <div className="shrink-0">
-                   <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Review Matches</button>
-                 </div>
-               </div>
-
+                )}
              </div>
           </div>
 
@@ -221,7 +267,6 @@ export default function IngestApplicants() {
 
              {/* Placeholder for the AI visual / image from the design */}
              <div className="rounded-xl overflow-hidden aspect-video bg-gray-900 relative">
-                {/* This represents the futuristic face image from the design */}
                 <div className="absolute inset-0 bg-gradient-to-tr from-blue-900/40 to-purple-900/40 mix-blend-overlay z-10"></div>
                 <div className="absolute inset-0 flex items-center justify-center text-white/20">
                    <Sparkles className="w-24 h-24" />

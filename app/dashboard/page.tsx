@@ -3,14 +3,17 @@ import { motion } from 'framer-motion';
 import { Download, Users, CheckCircle, Clock, Briefcase, ChevronRight, ChevronLeft, Sparkles, Calendar, UserPlus, Lightbulb, Plus, Terminal, Palette, ArrowUpRight } from 'lucide-react';
 import clsx from 'clsx';
 import Link from 'next/link';
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchJobs } from '../../store/slices/jobsSlice';
 import { fetchApplicants } from '../../store/slices/applicantsSlice';
+import { fetchAuditLogs } from '../../store/slices/auditSlice';
 import { AppDispatch, RootState } from '../../store/store';
+import { api } from '../../lib/api';
 
 export default function Dashboard() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [aiTip, setAiTip] = useState<string>("Analyzing your recruitment funnels...");
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollContainerRef.current) {
@@ -25,12 +28,35 @@ export default function Dashboard() {
   const dispatch = useDispatch<AppDispatch>();
   const { list: jobs } = useSelector((state: RootState) => state.jobs);
   const { list: applicants } = useSelector((state: RootState) => state.applicants);
+  const { list: auditLogs, status: auditStatus } = useSelector((state: RootState) => state.audit);
   const { user } = useSelector((state: RootState) => state.auth);
 
   useEffect(() => {
     dispatch(fetchJobs());
     dispatch(fetchApplicants());
-  }, [dispatch]);
+    if (auditStatus === 'idle') {
+      dispatch(fetchAuditLogs());
+    }
+
+    // Fetch AI Intelligence Tip
+    const fetchInsight = async () => {
+      try {
+        const response = await api.get('/dashboard/insight');
+        setAiTip(response.data.data.insight);
+      } catch (error) {
+        console.error('Failed to fetch AI insight:', error);
+      }
+    };
+    fetchInsight();
+  }, [dispatch, auditStatus]);
+
+  const getLogIcon = (actionType: string) => {
+    const type = actionType.toLowerCase();
+    if (type.includes('screening') || type.includes('analysis')) return { icon: Sparkles, color: 'text-indigo-500' };
+    if (type.includes('candidate') || type.includes('applicant')) return { icon: UserPlus, color: 'text-blue-500' };
+    if (type.includes('interview') || type.includes('schedule')) return { icon: Calendar, color: 'text-purple-500' };
+    return { icon: CheckCircle, color: 'text-green-500' };
+  };
 
   // Aggregate stats
   const totalApplicants = applicants.length;
@@ -41,6 +67,47 @@ export default function Dashboard() {
   const avgMatchScore = scoredApplicants.length > 0 
     ? Math.round(scoredApplicants.reduce((sum, a) => sum + (a.match_score || 0), 0) / scoredApplicants.length)
     : 0;
+
+  // Calculate avg time to shortlist
+  const analyzedApplicants = applicants.filter(a => a.ai_analysis && a.ai_analysis.length > 0);
+  const totalDaysToShortlist = analyzedApplicants.reduce((sum, a) => {
+    const start = new Date(a.applied_at);
+    const end = new Date(a.ai_analysis![0].created_at);
+    return sum + Math.max(0, (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  }, 0);
+  const avgTimeToShortlist = analyzedApplicants.length > 0 
+    ? (totalDaysToShortlist / analyzedApplicants.length).toFixed(1) 
+    : "0.0";
+
+  // Calculate trends (comparing last 7 days to previous 7 days)
+  const now = new Date();
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+  const last7DaysApps = applicants.filter(a => new Date(a.applied_at) > sevenDaysAgo).length;
+  const prev7DaysApps = applicants.filter(a => {
+    const d = new Date(a.applied_at);
+    return d > fourteenDaysAgo && d <= sevenDaysAgo;
+  }).length;
+
+  let appTrend = "";
+  if (prev7DaysApps > 0) {
+    const diff = ((last7DaysApps - prev7DaysApps) / prev7DaysApps) * 100;
+    appTrend = `${diff > 0 ? '+' : ''}${Math.round(diff)}%`;
+  } else if (last7DaysApps > 0) {
+    appTrend = "+100%";
+  }
+
+  const last7DaysScore = applicants.filter(a => a.match_score !== null && new Date(a.applied_at) > sevenDaysAgo);
+  const prev7DaysScore = applicants.filter(a => a.match_score !== null && new Date(a.applied_at) > fourteenDaysAgo && new Date(a.applied_at) <= sevenDaysAgo);
+  
+  let scoreTrend = "";
+  if (prev7DaysScore.length > 0 && last7DaysScore.length > 0) {
+    const avgLast = last7DaysScore.reduce((s, a) => s + (a.match_score || 0), 0) / last7DaysScore.length;
+    const avgPrev = prev7DaysScore.reduce((s, a) => s + (a.match_score || 0), 0) / prev7DaysScore.length;
+    const diff = ((avgLast - avgPrev) / avgPrev) * 100;
+    scoreTrend = `${diff > 0 ? '+' : ''}${Math.round(diff)}%`;
+  }
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8">
@@ -60,9 +127,9 @@ export default function Dashboard() {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <StatCard icon={Users} title="TOTAL APPLICANTS" value={totalApplicants.toString()} trend="+12%" positive={true} />
-        <StatCard icon={CheckCircle} title="AVG. MATCH SCORE" value={`${avgMatchScore}%`} trend="+5%" positive={true} />
-        <StatCard icon={Clock} title="TIME TO SHORTLIST" value="4.2 Days" trend="-2d" positive={true} />
+        <StatCard icon={Users} title="TOTAL APPLICANTS" value={totalApplicants.toString()} trend={appTrend} positive={!appTrend.includes('-')} />
+        <StatCard icon={CheckCircle} title="AVG. MATCH SCORE" value={`${avgMatchScore}%`} trend={scoreTrend} positive={!scoreTrend.includes('-')} />
+        <StatCard icon={Clock} title="TIME TO SHORTLIST" value={`${avgTimeToShortlist} Days`} />
         <StatCard icon={Briefcase} title="ACTIVE JOBS" value={activeJobsCount.toString()} />
       </div>
 
@@ -102,17 +169,24 @@ export default function Dashboard() {
                 </div>
               </div>
             ) : (
-              jobs.slice(0, 5).map((job) => (
-                <div key={job.id} className="min-w-[360px]">
-                  <JobCard 
-                    title={job.title} 
-                    dept={`${job.department} · ${job.location}`} 
-                    score="--" 
-                    apps={job.applicant_count || 0} 
-                    priority={job.priority} 
-                  />
-                </div>
-              ))
+              jobs.slice(0, 5).map((job) => {
+                const jobApplicants = applicants.filter(a => a.job_id === job.id && a.match_score !== null);
+                const topScore = jobApplicants.length > 0 
+                  ? Math.max(...jobApplicants.map(a => a.match_score || 0)) 
+                  : "--";
+
+                return (
+                  <div key={job.id} className="min-w-[360px]">
+                    <JobCard 
+                      title={job.title} 
+                      dept={`${job.department} · ${job.location}`} 
+                      score={topScore} 
+                      apps={job.applicant_count || 0} 
+                      priority={job.priority} 
+                    />
+                  </div>
+                );
+              })
             )}
           </div>
 
@@ -136,20 +210,27 @@ export default function Dashboard() {
         {/* Recent Activity */}
         <div className="space-y-4">
           <h2 className="text-xl font-bold text-[#0B1B42]">Recent Activity</h2>
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm divide-y divide-gray-50">
-            {[
-              { icon: CheckCircle, color: "text-green-500", text: "AI Screening Completed for Senior AI Engineer.", time: "10m ago" },
-              { icon: Calendar, color: "text-blue-500", text: "Interview Scheduled with Alex Chen.", time: "2h ago" },
-              { icon: UserPlus, color: "text-indigo-500", text: "New Application for Product Designer.", time: "4h ago" },
-            ].map((item, i) => (
-              <div key={i} className="flex items-start space-x-3 py-4 first:pt-0 last:pb-0">
-                <item.icon className={clsx("w-5 h-5 shrink-0 mt-0.5", item.color)} />
-                <div>
-                  <p className="text-sm text-gray-800 leading-snug">{item.text}</p>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">{item.time}</p>
-                </div>
+          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm divide-y divide-gray-50">
+            {auditLogs.length === 0 ? (
+              <div className="py-8 text-center text-gray-400 text-xs italic">
+                No recent activity recorded.
               </div>
-            ))}
+            ) : (
+              auditLogs.slice(0, 5).map((log) => {
+                const { icon: Icon, color } = getLogIcon(log.action_type);
+                return (
+                  <div key={log.id} className="flex items-start space-x-3 py-4 first:pt-0 last:pb-0">
+                    <Icon className={clsx("w-5 h-5 shrink-0 mt-0.5", color)} />
+                    <div>
+                      <p className="text-sm text-gray-800 leading-snug">{log.description}</p>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
+                        {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })
+            )}
             <div className="mt-6 pt-4 text-center">
               <Link href="/audit" className="text-xs font-bold text-[#0B1B42] uppercase tracking-widest hover:underline">Full Activity Log</Link>
             </div>
@@ -162,7 +243,7 @@ export default function Dashboard() {
                <span>AI Intelligence Tip</span>
              </div>
              <p className="text-sm text-gray-600 italic font-medium leading-relaxed">
-               "Candidates for 'Product Designer' are responding well to remote-first perks. Consider emphasizing this in your listings."
+               "{aiTip}"
              </p>
           </div>
         </div>

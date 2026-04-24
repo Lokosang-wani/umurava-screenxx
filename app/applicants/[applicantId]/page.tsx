@@ -3,8 +3,9 @@ import { useParams } from 'next/navigation';
 import { ArrowLeft, Mail, Phone, MapPin, Download, CheckCircle2, AlertTriangle, Briefcase, GraduationCap, Link as LinkIcon, Calendar, X, Clock, Video } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { api } from '../../../../lib/api';
-import { Applicant } from '../../../../store/slices/applicantsSlice';
+import clsx from 'clsx';
+import { api } from '@/lib/api';
+import { Applicant } from '@/store/slices/applicantsSlice';
 import { Sparkles } from 'lucide-react';
 
 export default function CandidateProfilePage() {

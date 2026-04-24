@@ -1,17 +1,59 @@
 'use client';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Sparkles, CheckCircle2, ChevronDown, X, Save } from 'lucide-react';
 import Link from 'next/link';
 import clsx from 'clsx';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { api } from '../../../../lib/api';
 
 export default function EditJobPage() {
   const params = useParams();
+  const router = useRouter();
   const jobId = params.jobId as string;
   
   const [techSkills, setTechSkills] = useState(['Python', 'PyTorch', 'LLMs']);
-  const [softSkills, setSoftSkills] = useState(['Leadership', 'Critical Thinking']);
   const [currentStep, setCurrentStep] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [aiBaseline, setAiBaseline] = useState<any>(null);
+  const [jobData, setJobData] = useState({
+    title: '',
+    department: '',
+    location: '',
+    description: '',
+    priority: 'REGULAR'
+  });
+
+  useEffect(() => {
+    const fetchJob = async () => {
+      try {
+        const response = await api.get(`/jobs/${jobId}`);
+        const job = response.data.data.job;
+        setJobData({
+          title: job.title,
+          department: job.department,
+          location: job.location,
+          description: job.description || '',
+          priority: job.priority
+        });
+        setAiBaseline(job.ai_baseline);
+      } catch (error) {
+        console.error('Failed to fetch job:', error);
+      }
+    };
+    fetchJob();
+  }, [jobId]);
+
+  const handleSave = async () => {
+    try {
+      setIsLoading(true);
+      await api.patch(`/jobs/${jobId}`, jobData);
+      router.push(`/jobs/${jobId}`);
+    } catch (error) {
+      console.error('Failed to update job:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, 4));
   const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
@@ -24,10 +66,14 @@ export default function EditJobPage() {
           <Link href={`/jobs/${jobId}`} className="mr-4 text-gray-500 hover:text-gray-800 transition-colors">
             <ArrowLeft className="w-5 h-5" />
           </Link>
-          <h1 className="text-xl font-bold text-[#0B1B42]">Edit Job: Senior AI Engineer</h1>
+          <h1 className="text-xl font-bold text-[#0B1B42]">Edit Job: {jobData.title}</h1>
         </div>
-        <button className="flex items-center px-4 py-2 bg-[#0B1B42] text-white rounded-lg text-sm font-medium hover:bg-blue-900 transition-colors shadow-sm">
-          <Save className="w-4 h-4 mr-2" /> Save Changes
+        <button 
+          onClick={handleSave}
+          disabled={isLoading}
+          className="flex items-center px-4 py-2 bg-[#0B1B42] text-white rounded-lg text-sm font-medium hover:bg-blue-900 transition-colors shadow-sm disabled:opacity-70"
+        >
+          <Save className="w-4 h-4 mr-2" /> {isLoading ? 'Saving...' : 'Save Changes'}
         </button>
       </div>
 
@@ -56,15 +102,24 @@ export default function EditJobPage() {
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                    <div>
                      <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Job Title</label>
-                     <input type="text" defaultValue="Senior AI Engineer" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                     <input 
+                       type="text" 
+                       value={jobData.title}
+                       onChange={(e) => setJobData({...jobData, title: e.target.value})}
+                       className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
+                     />
                    </div>
                    <div>
                      <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Department</label>
                      <div className="relative">
-                       <select defaultValue="Engineering" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm appearance-none focus:ring-2 focus:ring-blue-500 outline-none bg-white">
-                         <option>Engineering</option>
-                         <option>Product</option>
-                         <option>Design</option>
+                       <select 
+                         value={jobData.department}
+                         onChange={(e) => setJobData({...jobData, department: e.target.value})}
+                         className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm appearance-none focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                       >
+                         <option value="Engineering">Engineering</option>
+                         <option value="Product">Product</option>
+                         <option value="Design">Design</option>
                        </select>
                        <ChevronDown className="w-4 h-4 text-gray-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                      </div>
@@ -73,7 +128,12 @@ export default function EditJobPage() {
                  
                  <div>
                    <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Role Description</label>
-                   <textarea rows={4} defaultValue="Briefly describe the mission of this role..." className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"></textarea>
+                   <textarea 
+                     rows={4} 
+                     value={jobData.description}
+                     onChange={(e) => setJobData({...jobData, description: e.target.value})}
+                     className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                   ></textarea>
                  </div>
                </div>
              )}
@@ -93,9 +153,9 @@ export default function EditJobPage() {
                    <div>
                      <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Work Location</label>
                      <div className="flex bg-gray-50 p-1 rounded-lg border border-gray-200">
-                       <button className="flex-1 py-1.5 text-sm font-medium bg-[#0B1B42] text-white rounded shadow-sm">Remote</button>
-                       <button className="flex-1 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900">Hybrid</button>
-                       <button className="flex-1 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900">On-site</button>
+                       <button onClick={() => setJobData({...jobData, location: 'Remote'})} className={clsx("flex-1 py-1.5 text-sm font-medium rounded shadow-sm", jobData.location === 'Remote' ? "bg-[#0B1B42] text-white" : "text-gray-600 hover:text-gray-900")}>Remote</button>
+                       <button onClick={() => setJobData({...jobData, location: 'Hybrid'})} className={clsx("flex-1 py-1.5 text-sm font-medium rounded shadow-sm", jobData.location === 'Hybrid' ? "bg-[#0B1B42] text-white" : "text-gray-600 hover:text-gray-900")}>Hybrid</button>
+                       <button onClick={() => setJobData({...jobData, location: 'On-site'})} className={clsx("flex-1 py-1.5 text-sm font-medium rounded shadow-sm", jobData.location === 'On-site' ? "bg-[#0B1B42] text-white" : "text-gray-600 hover:text-gray-900")}>On-site</button>
                      </div>
                    </div>
                  </div>
@@ -116,12 +176,12 @@ export default function EditJobPage() {
              )}
 
              {currentStep > 2 && (
-               <div className="flex flex-col items-center justify-center py-12">
+               <div className="flex flex-col items-center justify-center py-12 text-center">
                   <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-4">
                     <Sparkles className="w-8 h-8" />
                   </div>
-                  <h2 className="text-xl font-bold text-[#0B1B42] mb-2">Updating AI Baseline...</h2>
-                  <p className="text-gray-500 text-sm text-center max-w-md">Changing requirements may cause match scores for existing applicants to be recalculated.</p>
+                  <h2 className="text-xl font-bold text-[#0B1B42] mb-2">AI Baseline Synchronized</h2>
+                  <p className="text-gray-500 text-sm max-w-md">The candidate profile baseline has been updated. This will affect how future applicants are scored.</p>
                </div>
              )}
 
@@ -136,9 +196,9 @@ export default function EditJobPage() {
                       {currentStep === 1 ? 'Continue to Requirements' : 'Review AI Changes'}
                     </button>
                   ) : (
-                    <Link href={`/jobs/${jobId}`} className="px-6 py-2.5 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm">
+                    <button onClick={handleSave} className="px-6 py-2.5 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm">
                       Confirm Updates
-                    </Link>
+                    </button>
                   )}
                 </div>
              </div>
@@ -159,21 +219,52 @@ export default function EditJobPage() {
              
              <p className="text-sm text-gray-600 mb-6">ScreenerX AI uses this profile as a baseline. Based on your current inputs, we recommend searching for:</p>
              
-             <div className="space-y-4 mb-8">
-               <div className="flex items-start space-x-3 bg-gray-50 p-4 rounded-lg border border-gray-100">
-                 <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5" />
-                 <div>
-                   <h4 className="text-sm font-bold text-[#0B1B42]">Technical Depth</h4>
-                   <p className="text-xs text-gray-500 mt-1">ScreenerX AI uses this profile as a baseline. Based on your current inputs, we recommend searching for:</p>
-                 </div>
-               </div>
-               <div className="flex items-start space-x-3 bg-gray-50 p-4 rounded-lg border border-gray-100">
-                 <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5" />
-                 <div>
-                   <h4 className="text-sm font-bold text-[#0B1B42]">Industry Fit</h4>
-                   <p className="text-xs text-gray-500 mt-1">ScreenerX AI uses this profile as a baseline. Based on your current inputs, we recommend searching for:</p>
-                 </div>
-               </div>
+             {aiBaseline ? (
+               <>
+                <div className="space-y-4 mb-8">
+                  <div className="flex items-start space-x-3 bg-gray-50 p-4 rounded-lg border border-gray-100">
+                    <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5" />
+                    <div>
+                      <h4 className="text-sm font-bold text-[#0B1B42]">Technical Depth</h4>
+                      <p className="text-xs text-gray-500 mt-1">{aiBaseline.technical_depth}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-3 bg-gray-50 p-4 rounded-lg border border-gray-100">
+                    <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5" />
+                    <div>
+                      <h4 className="text-sm font-bold text-[#0B1B42]">Industry Fit</h4>
+                      <p className="text-xs text-gray-500 mt-1">{aiBaseline.industry_fit}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-end">
+                    <span className="text-xs font-bold text-gray-700 tracking-wider uppercase">Profile Precision</span>
+                    <span className="text-lg font-bold text-green-500">{aiBaseline.precision}%</span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-2">
+                    <div className="bg-green-500 h-2 rounded-full" style={{ width: `${aiBaseline.precision}%` }}></div>
+                  </div>
+                </div>
+               </>
+             ) : (
+                <div className="py-12 text-center text-gray-400 text-xs italic">
+                  AI Baseline not yet generated for this role.
+                </div>
+             )}
+          </div>
+
+          <div className="bg-[#0B1B42] rounded-xl overflow-hidden shadow-sm text-white p-6">
+             <h3 className="text-lg font-bold mb-4">Market Intelligence</h3>
+             <div className="space-y-4">
+                <div className="flex justify-between items-center pb-3 border-b border-white/10">
+                  <span className="text-sm text-blue-200">Avg. Salary</span>
+                  <span className="text-sm font-bold">{aiBaseline?.market_intelligence?.avg_salary || '$--'}</span>
+                </div>
+                <div className="flex justify-between items-center pb-3 border-b border-white/10">
+                  <span className="text-sm text-blue-200">Availability</span>
+                  <span className="text-xs font-bold bg-red-500/20 text-red-300 px-2 py-0.5 rounded uppercase">{aiBaseline?.market_intelligence?.availability || '--'}</span>
+                </div>
              </div>
           </div>
         </div>

@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { User, Building, Sliders, Key, Shield, Bell, Save } from 'lucide-react';
 import clsx from 'clsx';
 import { useSelector } from 'react-redux';
-import { RootState } from '@/store/store';
+import { RootState } from '../../store/store';
+import { api } from '../../lib/api';
 
 type TabType = 'profile' | 'organization' | 'ai' | 'api' | 'notifications' | 'security';
 
@@ -210,6 +211,33 @@ function NotificationsView() {
 }
 
 function SecurityView() {
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [message, setMessage] = useState({ type: '', text: '' });
+
+  const handleUpdatePassword = async () => {
+    if (!currentPassword || !newPassword) {
+      setMessage({ type: 'error', text: 'Please fill in both fields.' });
+      return;
+    }
+
+    setIsLoading(true);
+    setMessage({ type: '', text: '' });
+
+    try {
+      await api.post('/auth/change-password', { currentPassword, newPassword });
+      setMessage({ type: 'success', text: 'Password updated successfully!' });
+      setCurrentPassword('');
+      setNewPassword('');
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.message || 'Failed to update password.';
+      setMessage({ type: 'error', text: errorMsg });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
       <h2 className="text-xl font-bold text-[#0B1B42] mb-6 border-b border-gray-100 pb-4">Security</h2>
@@ -217,9 +245,32 @@ function SecurityView() {
         <div>
           <label className="block text-sm font-bold text-gray-800 mb-3">Change Password</label>
           <div className="space-y-4 md:w-1/2">
-            <input type="password" placeholder="Current Password" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-            <input type="password" placeholder="New Password" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-            <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Update Password</button>
+            <input 
+              type="password" 
+              placeholder="Current Password" 
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
+            />
+            <input 
+              type="password" 
+              placeholder="New Password" 
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
+            />
+            {message.text && (
+              <p className={clsx("text-xs font-bold", message.type === 'success' ? "text-green-600" : "text-red-500")}>
+                {message.text}
+              </p>
+            )}
+            <button 
+              onClick={handleUpdatePassword}
+              disabled={isLoading}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+            >
+              {isLoading ? 'Updating...' : 'Update Password'}
+            </button>
           </div>
         </div>
 

@@ -1,12 +1,12 @@
 'use client';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Upload, Globe, Code, ChevronRight, Zap, CheckCircle2, ArrowLeft, MapPin, Briefcase, Star, FileText, X, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import clsx from 'clsx';
 import { useParams } from 'next/navigation';
-import { api } from '../../../lib/api';
-import { Job } from '../../../store/slices/jobsSlice';
+import { api } from '@/lib/api';
+import { Job } from '@/store/slices/jobsSlice';
 
 const jobData = {
   id: '1',

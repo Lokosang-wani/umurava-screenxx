@@ -1,218 +1,246 @@
 'use client';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, MapPin, Users, Sparkles, User, MoreHorizontal, Plus, X, Video, CheckCircle2, Settings2 } from 'lucide-react';
-import { useState } from 'react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, MapPin, Users, Sparkles, User, MoreHorizontal, Plus, X, Video, CheckCircle2, Settings2, Trash2 } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
 import clsx from 'clsx';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchInterviews, Interview } from '../../store/slices/interviewsSlice';
+import { fetchApplicants } from '../../store/slices/applicantsSlice';
+import { AppDispatch, RootState } from '../../store/store';
+import NoData from '@/components/shared/NoData';
+import { api } from '../../lib/api';
+
+function formatTime(timeStr: string) {
+  if (!timeStr) return '';
+  const [hours, minutes] = timeStr.split(':');
+  const h = parseInt(hours, 10);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const displayHours = h % 12 || 12;
+  return `${displayHours}:${minutes} ${ampm}`;
+}
+
+function formatDateDisplay(date: Date) {
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function getInitials(name: string) {
+  if (!name) return '??';
+  return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+}
 
 export default function CalendarPage() {
-  const [currentMonth, setCurrentMonth] = useState('October 2026');
-  const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
+  const dispatch = useDispatch<AppDispatch>();
+  const { list: rawInterviews, status } = useSelector((state: RootState) => state.interviews);
+  const { list: applicants } = useSelector((state: RootState) => state.applicants);
+
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isManageTypesOpen, setIsManageTypesOpen] = useState(false);
-  const [selectedInterview, setSelectedInterview] = useState<any>(null);
+  const [selectedInterview, setSelectedInterview] = useState<Interview | null>(null);
   const [scheduleSuccess, setScheduleSuccess] = useState(false);
+  const [isLoadingTypes, setIsLoadingTypes] = useState(false);
+  const [interviewTypes, setInterviewTypes] = useState<any[]>([]);
 
-  // New feature: Interview Types
-  const [interviewTypes, setInterviewTypes] = useState([
-    { id: 1, name: 'Technical Screen', duration: '45m' },
-    { id: 2, name: 'Initial Culture Fit', duration: '30m' },
-    { id: 3, name: 'System Design', duration: '60m' }
-  ]);
+  // Form states
+  const [newType, setNewType] = useState({ name: '', durationMinutes: 30 });
+  const [scheduleData, setScheduleData] = useState({
+    applicantId: '',
+    interviewTypeId: '',
+    scheduledDate: '',
+    startTime: '',
+    endTime: '',
+    meetUrl: 'https://meet.google.com/abc-defg-hij'
+  });
+
+  useEffect(() => {
+    dispatch(fetchInterviews());
+    dispatch(fetchApplicants());
+    fetchInterviewTypes();
+  }, [dispatch]);
+
+  const fetchInterviewTypes = async () => {
+    setIsLoadingTypes(true);
+    try {
+      const res = await api.get('/interviews/types');
+      setInterviewTypes(res.data.data.types);
+    } catch (error) {
+      console.error('Failed to fetch types:', error);
+    } finally {
+      setIsLoadingTypes(false);
+    }
+  };
+
+  const handleCreateType = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.post('/interviews/types', newType);
+      setNewType({ name: '', durationMinutes: 30 });
+      fetchInterviewTypes();
+    } catch (error) {
+      alert('Failed to create interview type');
+    }
+  };
+
+  const handleManualSchedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const type = interviewTypes.find(t => t.id === scheduleData.interviewTypeId);
+      const duration = type ? type.duration_minutes : 30;
+      
+      const [h, m] = scheduleData.startTime.split(':').map(Number);
+      const totalMins = m + duration;
+      const endH = h + Math.floor(totalMins / 60);
+      const endM = totalMins % 60;
+      const endTime = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}:00`;
+
+      await api.post('/interviews/schedule', {
+        ...scheduleData,
+        startTime: `${scheduleData.startTime}:00`,
+        endTime
+      });
+
+      setScheduleSuccess(true);
+      dispatch(fetchInterviews());
+      setTimeout(() => {
+        setIsScheduleModalOpen(false);
+        setScheduleSuccess(false);
+        setScheduleData({ applicantId: '', interviewTypeId: '', scheduledDate: '', startTime: '', endTime: '', meetUrl: 'https://meet.google.com/abc-defg-hij' });
+      }, 2000);
+    } catch (error) {
+      alert('Failed to schedule interview');
+    }
+  };
+
+  // Calendar Logic
+  const calendarDays = useMemo(() => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    
+    if (viewMode === 'month') {
+      const firstDay = new Date(year, month, 1).getDay();
+      const lastDate = new Date(year, month + 1, 0).getDate();
+      const days = [];
+      const prevMonthLastDate = new Date(year, month, 0).getDate();
+      for (let i = firstDay - 1; i >= 0; i--) {
+        days.push({ day: prevMonthLastDate - i, current: false, date: new Date(year, month, -i) });
+      }
+      for (let i = 1; i <= lastDate; i++) {
+        days.push({ day: i, current: true, date: new Date(year, month, i) });
+      }
+      const remaining = 35 - days.length;
+      for (let i = 1; i <= (remaining < 0 ? 0 : remaining); i++) {
+        days.push({ day: i, current: false, date: new Date(year, month + 1, i) });
+      }
+      return days;
+    } else {
+      // Week View
+      const dayOfWeek = currentDate.getDay();
+      const diff = currentDate.getDate() - dayOfWeek;
+      const startOfWeek = new Date(currentDate.setDate(diff));
+      const days = [];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(startOfWeek);
+        d.setDate(startOfWeek.getDate() + i);
+        days.push({ day: d.getDate(), current: true, date: d });
+      }
+      return days;
+    }
+  }, [currentDate, viewMode]);
 
   const handlePrev = () => {
-    if (viewMode === 'month') setCurrentMonth('September 2026');
-    else if (viewMode === 'week') setCurrentMonth('Oct 11 - Oct 17, 2026');
-    else setCurrentMonth('Oct 23, 2026');
+    const newDate = new Date(currentDate);
+    if (viewMode === 'month') newDate.setMonth(currentDate.getMonth() - 1);
+    else newDate.setDate(currentDate.getDate() - 7);
+    setCurrentDate(newDate);
   };
 
   const handleNext = () => {
-    if (viewMode === 'month') setCurrentMonth('November 2026');
-    else if (viewMode === 'week') setCurrentMonth('Oct 25 - Oct 31, 2026');
-    else setCurrentMonth('Oct 25, 2026');
+    const newDate = new Date(currentDate);
+    if (viewMode === 'month') newDate.setMonth(currentDate.getMonth() + 1);
+    else newDate.setDate(currentDate.getDate() + 7);
+    setCurrentDate(newDate);
   };
 
-  const handleSchedule = (e: React.FormEvent) => {
-    e.preventDefault();
-    setScheduleSuccess(true);
-    setTimeout(() => {
-      setIsScheduleModalOpen(false);
-      setScheduleSuccess(false);
-    }, 2000);
-  };
+  const interviews = (rawInterviews || []).map(inv => ({
+    ...inv,
+    candidate: inv.applicants?.name || 'Unknown Candidate',
+    role: inv.applicants?.jobs?.title || 'Unknown Role',
+    time: `${formatTime(inv.start_time)} - ${formatTime(inv.end_time)}`,
+    displayDate: formatDateDisplay(new Date(inv.scheduled_date)),
+    isoDate: inv.scheduled_date,
+    type: inv.interview_types?.name || 'Interview',
+    avatar: getInitials(inv.applicants?.name),
+  }));
 
-  const interviews = [
-    {
-      id: 1,
-      candidate: 'Dr. Aris Thorne',
-      role: 'Senior AI Engineer',
-      time: '10:00 AM - 11:00 AM',
-      date: 'Oct 24',
-      type: 'Technical Screen',
-      scheduledBy: 'AI',
-      avatar: 'AT',
-      meetUrl: 'https://meet.google.com/abc-defg-hij',
-      interviewers: 'Alex Thompson, Sarah Jenkins'
-    },
-    {
-      id: 2,
-      candidate: 'Elena Volkov',
-      role: 'Lead AI Researcher',
-      time: '1:30 PM - 2:30 PM',
-      date: 'Oct 24',
-      type: 'Culture Fit',
-      scheduledBy: 'You',
-      avatar: 'EV',
-      meetUrl: 'https://meet.google.com/xyz-pqrs-tuv',
-      interviewers: 'James Wilson'
-    },
-    {
-      id: 3,
-      candidate: 'Samuel Zhang',
-      role: 'MLOps Architect',
-      time: '09:00 AM - 10:00 AM',
-      date: 'Oct 25',
-      type: 'System Design',
-      scheduledBy: 'AI',
-      avatar: 'SZ',
-      meetUrl: 'https://meet.google.com/mno-stuv-wxyz',
-      interviewers: 'Alex Thompson, Michael Chen'
-    },
-    {
-      id: 4,
-      candidate: 'Jordan Lee',
-      role: 'Product Designer',
-      time: '3:00 PM - 4:00 PM',
-      date: 'Oct 26',
-      type: 'Portfolio Review',
-      scheduledBy: 'You',
-      avatar: 'JL',
-      meetUrl: 'https://meet.google.com/jkl-mnop-qrs',
-      interviewers: 'Sarah Jenkins'
-    }
-  ];
+  const todayStr = new Date().toISOString().split('T')[0];
 
   return (
     <div className="bg-gray-50 min-h-screen pb-12 relative">
-      {/* Top Navigation */}
       <div className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between sticky top-0 z-10">
         <div>
           <h1 className="text-xl font-bold text-[#0B1B42]">Interview Calendar</h1>
           <p className="text-xs text-gray-500 mt-0.5">Manage your upcoming screening sessions and sync with AI scheduling.</p>
         </div>
         <div className="flex space-x-3">
-          <button 
-            onClick={() => setIsManageTypesOpen(true)}
-            className="px-4 py-2 bg-white border border-gray-200 text-[#0B1B42] rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center"
-          >
-             <Settings2 className="w-4 h-4 mr-2" /> Interview Types
+          <button onClick={() => setIsManageTypesOpen(true)} className="px-4 py-2 bg-white border border-gray-200 text-[#0B1B42] rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center transition-colors">
+            <Settings2 className="w-4 h-4 mr-2" /> Interview Types
           </button>
-          <button 
-            onClick={() => setIsScheduleModalOpen(true)}
-            className="px-4 py-2 bg-[#0B1B42] text-white rounded-lg text-sm font-medium hover:bg-blue-900 transition-colors shadow-sm flex items-center"
-          >
-             <Plus className="w-4 h-4 mr-2" /> Manual Schedule
+          <button onClick={() => setIsScheduleModalOpen(true)} className="px-4 py-2 bg-[#0B1B42] text-white rounded-lg text-sm font-medium hover:bg-blue-900 shadow-sm flex items-center transition-colors">
+            <Plus className="w-4 h-4 mr-2" /> Manual Schedule
           </button>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-8 mt-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
-        
-        {/* Left Column: Calendar Grid */}
         <div className="lg:col-span-3 space-y-6">
           <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-            {/* Calendar Header */}
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-[#0B1B42] min-w-[220px]">{currentMonth}</h2>
+              <h2 className="text-lg font-bold text-[#0B1B42] min-w-[220px]">
+                {viewMode === 'month' 
+                  ? currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+                  : `Week of ${currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+              </h2>
               <div className="flex items-center space-x-2">
-                <button 
-                  onClick={handlePrev}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
-                >
+                <button onClick={handlePrev} className="p-2 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors">
                   <ChevronLeft className="w-4 h-4 text-gray-600" />
                 </button>
-                <button 
-                  onClick={handleNext}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
-                >
+                <button onClick={handleNext} className="p-2 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors">
                   <ChevronRight className="w-4 h-4 text-gray-600" />
                 </button>
                 <div className="h-6 w-px bg-gray-200 mx-2"></div>
                 <div className="flex bg-gray-100 p-1 rounded-lg border border-gray-200">
-                  <button 
-                    onClick={() => { setViewMode('month'); setCurrentMonth('October 2026'); }}
-                    className={clsx(
-                      "px-3 py-1 text-xs font-bold rounded transition-all",
-                      viewMode === 'month' ? "bg-white text-[#0B1B42] shadow-sm" : "text-gray-500 hover:text-gray-900"
-                    )}
-                  >
-                    Month
-                  </button>
-                  <button 
-                    onClick={() => { setViewMode('week'); setCurrentMonth('Oct 18 - Oct 24, 2026'); }}
-                    className={clsx(
-                      "px-3 py-1 text-xs font-bold rounded transition-all",
-                      viewMode === 'week' ? "bg-white text-[#0B1B42] shadow-sm" : "text-gray-500 hover:text-gray-900"
-                    )}
-                  >
-                    Week
-                  </button>
-                  <button 
-                    onClick={() => { setViewMode('day'); setCurrentMonth('Oct 24, 2026'); }}
-                    className={clsx(
-                      "px-3 py-1 text-xs font-bold rounded transition-all",
-                      viewMode === 'day' ? "bg-white text-[#0B1B42] shadow-sm" : "text-gray-500 hover:text-gray-900"
-                    )}
-                  >
-                    Day
-                  </button>
+                  <button onClick={() => setViewMode('month')} className={clsx("px-3 py-1 text-xs font-bold rounded transition-all", viewMode === 'month' ? "bg-white text-[#0B1B42] shadow-sm" : "text-gray-500")}>Month</button>
+                  <button onClick={() => setViewMode('week')} className={clsx("px-3 py-1 text-xs font-bold rounded transition-all", viewMode === 'week' ? "bg-white text-[#0B1B42] shadow-sm" : "text-gray-500")}>Week</button>
                 </div>
               </div>
             </div>
 
-            {/* Calendar Grid */}
-            <div className="grid grid-cols-7 border-b border-gray-200">
+            <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50/50">
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                <div key={day} className="py-3 text-center text-[10px] font-bold text-gray-400 uppercase tracking-widest border-r border-gray-100 last:border-r-0">
-                  {day}
-                </div>
+                <div key={day} className="p-3 text-center text-[10px] font-bold text-gray-400 uppercase tracking-widest border-r border-gray-200 last:border-r-0">{day}</div>
               ))}
             </div>
-            
-            <div className="grid grid-cols-7 h-[600px]">
-              {Array.from({ length: 35 }).map((_, i) => {
-                const day = i - 3; // Offset for Oct 2026 starting on Thursday
-                const isCurrentMonth = day > 0 && day <= 31;
-                const hasInterviews = day === 24 || day === 25 || day === 26;
-
+            <div className={clsx("grid grid-cols-7 bg-gray-200 gap-px", viewMode === 'month' ? "grid-rows-5" : "grid-rows-1")}>
+              {calendarDays.map((d, i) => {
+                const dateISO = d.date.toISOString().split('T')[0];
+                const isToday = dateISO === todayStr;
+                const dayInterviews = interviews.filter(inv => inv.isoDate === dateISO);
                 return (
-                  <div key={i} className={clsx(
-                    "border-r border-b border-gray-100 p-2 transition-colors hover:bg-gray-50/50 group relative",
-                    !isCurrentMonth && "bg-gray-50/50 text-gray-300"
-                  )}>
-                    <span className={clsx(
-                      "text-xs font-bold mb-2 inline-block",
-                      day === 24 ? "w-6 h-6 bg-[#0B1B42] text-white rounded-full flex items-center justify-center" : "text-gray-600"
-                    )}>
-                      {isCurrentMonth ? day : ''}
-                    </span>
-                    
-                    {hasInterviews && (
-                      <div className="space-y-1 mt-1">
-                        {interviews.filter(inv => parseInt(inv.date.split(' ')[1]) === day).map(inv => (
-                          <button 
-                            key={inv.id} 
-                            onClick={() => setSelectedInterview(inv)}
-                            className={clsx(
-                            "w-full text-left px-2 py-1 rounded text-[9px] font-bold border truncate flex items-center space-x-1 hover:scale-[1.02] transition-transform",
-                            inv.scheduledBy === 'AI' 
-                              ? "bg-blue-50 text-blue-700 border-blue-100" 
-                              : "bg-purple-50 text-purple-700 border-purple-100"
-                          )}>
-                            {inv.scheduledBy === 'AI' && <Sparkles className="w-2 h-2 shrink-0" />}
+                  <div key={i} className={clsx("min-h-[110px] p-2 transition-colors", d.current ? "bg-white hover:bg-gray-50" : "bg-gray-50/50 text-gray-300")}>
+                    <div className="flex flex-col h-full">
+                      <div className="flex justify-between items-start mb-1">
+                        <span className={clsx("text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full", isToday ? "bg-blue-600 text-white shadow-md" : "text-gray-600")}>{d.day}</span>
+                        {viewMode === 'week' && <span className="text-[10px] text-gray-400 font-bold uppercase">{d.date.toLocaleDateString('en-US', { month: 'short' })}</span>}
+                      </div>
+                      <div className="space-y-1 mt-1 overflow-y-auto max-h-[80px] no-scrollbar">
+                        {dayInterviews.map(inv => (
+                          <button key={inv.id} onClick={() => setSelectedInterview(inv)} className={clsx("w-full text-left px-2 py-1 rounded text-[9px] font-bold border truncate flex items-center space-x-1 transition-transform hover:scale-[1.02]", inv.scheduled_by === 'AI' ? "bg-blue-50 text-blue-700 border-blue-100" : "bg-purple-50 text-purple-700 border-purple-100")}>
+                            {inv.scheduled_by === 'AI' && <Sparkles className="w-2 h-2 shrink-0" />}
                             <span className="truncate">{inv.candidate}</span>
                           </button>
                         ))}
                       </div>
-                    )}
+                    </div>
                   </div>
                 );
               })}
@@ -220,82 +248,39 @@ export default function CalendarPage() {
           </div>
         </div>
 
-        {/* Right Column: Upcoming Agenda */}
         <div className="space-y-6">
           <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
             <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-6">Upcoming Agenda</h2>
-            
-            <div className="space-y-8">
+            <div className="space-y-6">
               {interviews.length === 0 ? (
-                <div className="py-12 text-center">
-                  <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Clock className="w-6 h-6 text-gray-300" />
-                  </div>
-                  <p className="text-sm text-gray-500">No interviews scheduled for this period.</p>
-                </div>
+                <NoData icon={Clock} title="No interviews" description="Your schedule is clear." />
               ) : (
-                interviews.map((inv, idx) => {
-                  const isNewDate = idx === 0 || interviews[idx-1].date !== inv.date;
+                interviews.slice(0, 8).map((inv, idx) => {
+                  const isNewDate = idx === 0 || interviews[idx-1].isoDate !== inv.isoDate;
                   return (
                     <div key={inv.id} className="relative">
                       {isNewDate && (
                         <div className="flex items-center space-x-4 mb-4">
                           <div className="h-px bg-gray-100 flex-1"></div>
-                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">{inv.date}</span>
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{inv.displayDate}</span>
                           <div className="h-px bg-gray-100 flex-1"></div>
                         </div>
                       )}
-                      
-                      <div 
-                        onClick={() => setSelectedInterview(inv)}
-                        className="bg-gray-50/50 border border-gray-100 rounded-xl p-4 hover:border-blue-200 transition-colors group cursor-pointer"
-                      >
+                      <div onClick={() => setSelectedInterview(inv)} className="bg-gray-50/50 border border-gray-100 rounded-xl p-4 hover:border-blue-200 transition-colors cursor-pointer group">
                         <div className="flex justify-between items-start mb-3">
                           <div className="flex items-center space-x-3">
-                            <div className="w-8 h-8 rounded-lg bg-[#0B1B42] text-white flex items-center justify-center font-bold text-xs shadow-sm">
-                              {inv.avatar}
-                            </div>
+                            <div className="w-8 h-8 rounded-lg bg-[#0B1B42] text-white flex items-center justify-center font-bold text-xs">{inv.avatar}</div>
                             <div>
                               <h4 className="text-sm font-bold text-[#0B1B42] group-hover:text-blue-600 transition-colors">{inv.candidate}</h4>
-                              <p className="text-[10px] text-gray-500 font-medium">{inv.role}</p>
                             </div>
                           </div>
-                          <button className="text-gray-400 hover:text-gray-600">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </button>
+                          <MoreHorizontal className="w-4 h-4 text-gray-400" />
                         </div>
-
-                        <div className="space-y-2 mb-4">
-                          <div className="flex items-center text-[10px] text-gray-600">
-                            <Clock className="w-3 h-3 mr-2 text-gray-400" />
-                            {inv.time}
-                          </div>
-                          <div className="flex items-center text-[10px] text-gray-600">
-                            <Users className="w-3 h-3 mr-2 text-gray-400" />
-                            {inv.type}
-                          </div>
-                        </div>
-
+                        <div className="flex items-center text-[10px] text-gray-600 mb-3"><Clock className="w-3 h-3 mr-2 text-gray-400" /> {inv.time}</div>
                         <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                          <span className={clsx(
-                            "px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider flex items-center space-x-1",
-                            inv.scheduledBy === 'AI' 
-                              ? "bg-blue-100 text-blue-700" 
-                              : "bg-purple-100 text-purple-700"
-                          )}>
-                            {inv.scheduledBy === 'AI' ? (
-                              <>
-                                <Sparkles className="w-2 h-2 mr-1" />
-                                AI Scheduled
-                              </>
-                            ) : (
-                              <>
-                                <User className="w-2 h-2 mr-1" />
-                                Scheduled by You
-                              </>
-                            )}
-                          </span>
-                          <button className="text-[9px] font-bold text-blue-600 hover:underline">View</button>
+                           <span className={clsx("px-2 py-0.5 rounded text-[8px] font-bold uppercase flex items-center", inv.scheduled_by === 'AI' ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700")}>
+                             {inv.scheduled_by === 'AI' ? <><Sparkles className="w-2 h-2 mr-1" /> AI</> : <><User className="w-2 h-2 mr-1" /> Team</>}
+                           </span>
                         </div>
                       </div>
                     </div>
@@ -307,238 +292,106 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* Interview Detail Modal */}
-      {selectedInterview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-y-auto max-h-[90vh] animate-in fade-in zoom-in-95 duration-200 custom-scrollbar">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-              <h2 className="text-lg font-bold text-[#0B1B42]">Interview Details</h2>
-              <button 
-                onClick={() => setSelectedInterview(null)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="p-6 space-y-6">
-              <div className="flex items-center space-x-4">
-                <div className="w-16 h-16 rounded-2xl bg-[#0B1B42] text-white flex items-center justify-center font-bold text-2xl shadow-lg">
-                  {selectedInterview.avatar}
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-[#0B1B42]">{selectedInterview.candidate}</h3>
-                  <p className="text-sm text-gray-500 font-medium">{selectedInterview.role}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-6 pt-4 border-t border-gray-50">
-                <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Date</label>
-                  <div className="flex items-center text-sm font-bold text-[#0B1B42]">
-                    <CalendarIcon className="w-4 h-4 mr-2 text-blue-600" />
-                    {selectedInterview.date}, 2026
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Time</label>
-                  <div className="flex items-center text-sm font-bold text-[#0B1B42]">
-                    <Clock className="w-4 h-4 mr-2 text-blue-600" />
-                    {selectedInterview.time}
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Interview Type</label>
-                  <div className="flex items-center text-sm font-medium text-gray-700 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                    <Users className="w-4 h-4 mr-3 text-gray-400" />
-                    {selectedInterview.type}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Interviewers</label>
-                  <div className="flex items-center text-sm font-medium text-gray-700 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                    <User className="w-4 h-4 mr-3 text-gray-400" />
-                    {selectedInterview.interviewers}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Meeting Link</label>
-                  <div className="flex items-center justify-between text-sm font-medium text-blue-700 bg-blue-50 p-3 rounded-xl border border-blue-100">
-                    <div className="flex items-center">
-                      <Video className="w-4 h-4 mr-3 text-blue-600" />
-                      <span className="truncate max-w-[200px]">{selectedInterview.meetUrl}</span>
-                    </div>
-                    <button className="text-[10px] font-bold uppercase bg-white px-2 py-1 rounded shadow-sm hover:bg-blue-100 transition-colors">Join</button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-6 border-t border-gray-100 flex space-x-3">
-                <button className="flex-1 py-3 bg-[#0B1B42] text-white rounded-xl text-sm font-bold hover:bg-blue-900 transition-colors shadow-lg">
-                  Reschedule
-                </button>
-                <button className="px-6 py-3 border border-red-200 text-red-600 rounded-xl text-sm font-bold hover:bg-red-50 transition-colors">
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MANAGE INTERVIEW TYPES MODAL */}
-      {isManageTypesOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-y-auto max-h-[90vh]">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-              <h2 className="text-lg font-bold text-[#0B1B42]">Interview Types</h2>
-              <button onClick={() => setIsManageTypesOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="space-y-3">
-                {interviewTypes.map(type => (
-                  <div key={type.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
-                    <div>
-                      <h4 className="text-sm font-bold text-[#0B1B42]">{type.name}</h4>
-                      <p className="text-[10px] text-gray-500 font-medium">Duration: {type.duration}</p>
-                    </div>
-                    <button onClick={() => setInterviewTypes(interviewTypes.filter(t => t.id !== type.id))} className="text-gray-400 hover:text-red-500 transition-colors">
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <button 
-                onClick={() => {
-                  const name = prompt('Type Name?');
-                  const duration = prompt('Duration (e.g. 45m)?');
-                  if (name && duration) setInterviewTypes([...interviewTypes, { id: Date.now(), name, duration }]);
-                }}
-                className="w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 font-bold text-xs hover:border-blue-400 hover:text-blue-600 transition-all"
-              >
-                + Add New Type
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Schedule Interview Modal */}
+      {/* Modals remain the same... */}
       {isScheduleModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-y-auto max-h-[90vh] animate-in fade-in zoom-in-95 duration-200 custom-scrollbar">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
               <h2 className="text-lg font-bold text-[#0B1B42]">Schedule Interview</h2>
-              <button 
-                onClick={() => setIsScheduleModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <button onClick={() => setIsScheduleModalOpen(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
             </div>
-            
             {scheduleSuccess ? (
-              <div className="p-12 flex flex-col items-center justify-center text-center">
-                 <div className="w-16 h-16 bg-green-100 text-green-500 rounded-full flex items-center justify-center mb-4">
-                   <CheckCircle2 className="w-8 h-8" />
-                 </div>
-                 <h3 className="text-xl font-bold text-[#0B1B42] mb-2">Invitation Sent!</h3>
-                 <p className="text-sm text-gray-500">The candidate has been notified and sent a calendar invite link.</p>
+              <div className="p-12 text-center">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce"><CheckCircle2 className="w-8 h-8 text-green-500" /></div>
+                <h3 className="text-xl font-bold text-[#0B1B42] mb-2">Successfully Scheduled!</h3>
               </div>
             ) : (
-              <form onSubmit={handleSchedule} className="p-6 space-y-4">
+              <form onSubmit={handleManualSchedule} className="p-6 space-y-6">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Candidate Name</label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <User className="h-4 w-4 text-gray-400" />
-                    </div>
-                    <input 
-                      type="text" 
-                      placeholder="Search or enter name..." 
-                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
-                      required 
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Interview Type</label>
-                  <select className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
-                    {interviewTypes.map(type => (
-                      <option key={type.id}>{type.name} ({type.duration})</option>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-2">Candidate</label>
+                  <select value={scheduleData.applicantId} onChange={e => setScheduleData({...scheduleData, applicantId: e.target.value})} required className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm">
+                    <option value="">Select Candidate...</option>
+                    {(applicants || []).map(app => (
+                      <option key={app.id} value={app.id}>{app.name} ({app.jobs?.title})</option>
                     ))}
                   </select>
                 </div>
-                
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-2">Interview Type</label>
+                  <select value={scheduleData.interviewTypeId} onChange={e => setScheduleData({...scheduleData, interviewTypeId: e.target.value})} required className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm">
+                    <option value="">Select Type...</option>
+                    {(interviewTypes || []).map(type => (
+                      <option key={type.id} value={type.id}>{type.name} ({type.duration_minutes}m)</option>
+                    ))}
+                  </select>
+                </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Date</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <CalendarIcon className="h-4 w-4 text-gray-400" />
-                      </div>
-                      <input type="date" className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" required />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Time</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Clock className="h-4 w-4 text-gray-400" />
-                      </div>
-                      <input type="time" className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" required />
-                    </div>
-                  </div>
+                  <input type="date" value={scheduleData.scheduledDate} onChange={e => setScheduleData({...scheduleData, scheduledDate: e.target.value})} required className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm" />
+                  <input type="time" value={scheduleData.startTime} onChange={e => setScheduleData({...scheduleData, startTime: e.target.value})} required className="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm" />
                 </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Meeting URL</label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Video className="h-4 w-4 text-gray-400" />
-                    </div>
-                    <input 
-                      type="url" 
-                      placeholder="https://meet.google.com/xxx-xxxx-xxx" 
-                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Message to Candidate</label>
-                  <textarea 
-                    rows={2} 
-                    placeholder="Add a personalized message..." 
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"
-                  ></textarea>
-                </div>
-
-                <div className="pt-4 border-t border-gray-100 flex justify-end space-x-3">
-                  <button 
-                    type="button" 
-                    onClick={() => setIsScheduleModalOpen(false)}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    type="submit"
-                    className="px-4 py-2 bg-[#0B1B42] text-white rounded-lg text-sm font-medium hover:bg-blue-900 transition-colors shadow-sm"
-                  >
-                    Send Invite
-                  </button>
-                </div>
+                <button type="submit" className="w-full py-3 bg-[#0B1B42] text-white rounded-xl font-bold shadow-lg">Schedule Event</button>
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {isManageTypesOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+              <h2 className="text-lg font-bold text-[#0B1B42]">Interview Configuration</h2>
+              <button onClick={() => setIsManageTypesOpen(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
+               <form onSubmit={handleCreateType} className="space-y-4">
+                  <h3 className="text-sm font-bold text-gray-500 uppercase mb-2">Create New Type</h3>
+                  <input type="text" placeholder="Type Name" value={newType.name} onChange={e => setNewType({...newType, name: e.target.value})} required className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm" />
+                  <input type="number" placeholder="Duration" value={newType.durationMinutes} onChange={e => setNewType({...newType, durationMinutes: parseInt(e.target.value)})} required className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm" />
+                  <button type="submit" className="w-full py-2 bg-[#0B1B42] text-white rounded-lg text-sm font-bold">Add Type</button>
+               </form>
+               <div>
+                  <h3 className="text-sm font-bold text-gray-500 uppercase mb-2">Existing Types</h3>
+                  <div className="space-y-2 max-h-[250px] overflow-y-auto no-scrollbar">
+                     {(interviewTypes || []).map(type => (
+                       <div key={type.id} className="p-3 bg-gray-50 border border-gray-100 rounded-xl flex justify-between items-center">
+                          <span className="text-sm font-bold text-[#0B1B42]">{type.name} ({type.duration_minutes}m)</span>
+                          {type.created_by_ai && <Sparkles className="w-3 h-3 text-blue-600" />}
+                       </div>
+                     ))}
+                  </div>
+               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedInterview && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-start bg-gray-50/50">
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 rounded-xl bg-[#0B1B42] text-white flex items-center justify-center font-bold text-lg">{selectedInterview.avatar}</div>
+                <div><h2 className="text-lg font-bold text-[#0B1B42]">{selectedInterview.candidate}</h2></div>
+              </div>
+              <button onClick={() => setSelectedInterview(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+               <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Date</p>
+                    <p className="text-sm font-bold">{selectedInterview.displayDate}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Time</p>
+                    <p className="text-sm font-bold">{formatTime((selectedInterview as any).start_time)}</p>
+                  </div>
+               </div>
+               <div className="bg-blue-50 p-4 rounded-xl flex items-center space-x-3">
+                  <Video className="w-5 h-5 text-blue-600" />
+                  <a href={selectedInterview.meet_url || '#'} className="text-sm text-blue-600 font-bold hover:underline">Join Meeting</a>
+               </div>
+            </div>
           </div>
         </div>
       )}

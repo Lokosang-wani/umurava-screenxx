@@ -2,6 +2,9 @@ import { configureStore, createSlice } from '@reduxjs/toolkit';
 import authReducer from './slices/authSlice';
 import jobsReducer from './slices/jobsSlice';
 import applicantsReducer from './slices/applicantsSlice';
+import notificationsReducer from './slices/notificationsSlice';
+import interviewsReducer from './slices/interviewsSlice';
+import auditReducer from './slices/auditSlice';
 
 // Placeholder slice — will be replaced with real slices (jobs, applicants, screening)
 const appSlice = createSlice({
@@ -16,6 +19,9 @@ export const store = configureStore({
     auth: authReducer,
     jobs: jobsReducer,
     applicants: applicantsReducer,
+    notifications: notificationsReducer,
+    interviews: interviewsReducer,
+    audit: auditReducer,
   },
 });
 

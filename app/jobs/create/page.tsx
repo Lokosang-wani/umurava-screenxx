@@ -15,6 +15,7 @@ export default function CreateJob() {
   const [techSkills, setTechSkills] = useState(['Python', 'PyTorch', 'LLMs']);
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [aiBaseline, setAiBaseline] = useState<any>(null);
   const [jobData, setJobData] = useState({
     title: '',
     department: 'Engineering',
@@ -23,7 +24,22 @@ export default function CreateJob() {
     is_public: true
   });
 
-  const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, 4));
+  const nextStep = async () => {
+    if (currentStep === 2 && jobData.title) {
+       // Moving to Step 3: Generate Baseline
+       try {
+         setIsLoading(true);
+         const response = await api.post('/jobs/generate-baseline', { title: jobData.title });
+         setAiBaseline(response.data.data.baseline);
+       } catch (error) {
+         console.error('Failed to generate AI baseline:', error);
+       } finally {
+         setIsLoading(false);
+       }
+    }
+    setCurrentStep(prev => Math.min(prev + 1, 4));
+  };
+
   const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
 
   const handlePublish = async () => {
@@ -144,14 +160,37 @@ export default function CreateJob() {
                </div>
              )}
 
-             {currentStep > 2 && (
-               <div className="flex flex-col items-center justify-center py-12">
-                  <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-4">
+             {currentStep === 3 && (
+               <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-4 animate-pulse">
                     <Sparkles className="w-8 h-8" />
                   </div>
-                  <h2 className="text-xl font-bold text-[#0B1B42] mb-2">Connecting to ScreenerX AI...</h2>
-                  <p className="text-gray-500 text-sm text-center max-w-md">The backend is not connected yet, but in a real scenario, this step would generate your ideal candidate baseline.</p>
+                  <h2 className="text-xl font-bold text-[#0B1B42] mb-2">ScreenerX AI Analysis Active</h2>
+                  <p className="text-gray-500 text-sm max-w-md">We've generated the ideal candidate baseline for your <strong>{jobData.title}</strong> role. Review the intelligence insights on the right before publishing.</p>
+                  
+                  <div className="mt-8 p-4 bg-green-50 rounded-xl border border-green-100 flex items-center space-x-3">
+                    <CheckCircle2 className="w-5 h-5 text-green-500" />
+                    <span className="text-sm font-bold text-green-800 uppercase tracking-wide">AI Baseline Synchronized</span>
+                  </div>
                </div>
+             )}
+
+             {currentStep === 4 && (
+                <div>
+                   <h2 className="text-lg font-bold text-[#0B1B42] mb-6">Review & Publish</h2>
+                   <div className="p-6 bg-gray-50 rounded-xl border border-gray-200">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h3 className="text-xl font-bold text-[#0B1B42]">{jobData.title}</h3>
+                          <p className="text-sm text-gray-500">{jobData.department} · {jobData.location}</p>
+                        </div>
+                        <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold uppercase tracking-wider">{jobData.priority} Priority</span>
+                      </div>
+                      <div className="space-y-4">
+                        <p className="text-sm text-gray-700 leading-relaxed">This position will be published publicly. ScreenerX AI will automatically screen all incoming resumes against the baseline generated in Step 3.</p>
+                      </div>
+                   </div>
+                </div>
              )}
 
              {/* Footer Actions */}
@@ -162,8 +201,8 @@ export default function CreateJob() {
                 <div className="flex space-x-4">
                   <button className="px-6 py-2.5 text-sm font-medium text-[#0B1B42] hover:bg-gray-50 rounded-lg transition-colors">Save Draft</button>
                   {currentStep < 4 ? (
-                    <button onClick={nextStep} className="px-6 py-2.5 text-sm font-medium bg-[#0B1B42] text-white rounded-lg hover:bg-blue-900 transition-colors shadow-sm">
-                      {currentStep === 1 ? 'Continue to Requirements' : 'Continue to AI Setup'}
+                    <button onClick={nextStep} disabled={isLoading} className="px-6 py-2.5 text-sm font-medium bg-[#0B1B42] text-white rounded-lg hover:bg-blue-900 transition-colors shadow-sm disabled:opacity-70">
+                      {isLoading ? 'Generating AI Profile...' : (currentStep === 1 ? 'Continue to Requirements' : 'Continue to AI Setup')}
                     </button>
                   ) : (
                     <button 
@@ -193,33 +232,41 @@ export default function CreateJob() {
              
              <p className="text-sm text-gray-600 mb-6">ScreenerX AI uses this profile as a baseline. Based on your current inputs, we recommend searching for:</p>
              
-             <div className="space-y-4 mb-8">
-               <div className="flex items-start space-x-3 bg-gray-50 p-4 rounded-lg border border-gray-100">
-                 <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5" />
-                 <div>
-                   <h4 className="text-sm font-bold text-[#0B1B42]">Technical Depth</h4>
-                   <p className="text-xs text-gray-500 mt-1">ScreenerX AI uses this profile as a baseline. Based on your current inputs, we recommend searching for:</p>
-                 </div>
-               </div>
-               <div className="flex items-start space-x-3 bg-gray-50 p-4 rounded-lg border border-gray-100">
-                 <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5" />
-                 <div>
-                   <h4 className="text-sm font-bold text-[#0B1B42]">Industry Fit</h4>
-                   <p className="text-xs text-gray-500 mt-1">ScreenerX AI uses this profile as a baseline. Based on your current inputs, we recommend searching for:</p>
-                 </div>
-               </div>
-             </div>
+             {aiBaseline ? (
+               <>
+                <div className="space-y-4 mb-8">
+                  <div className="flex items-start space-x-3 bg-gray-50 p-4 rounded-lg border border-gray-100">
+                    <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5" />
+                    <div>
+                      <h4 className="text-sm font-bold text-[#0B1B42]">Technical Depth</h4>
+                      <p className="text-xs text-gray-500 mt-1">{aiBaseline.technical_depth}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-3 bg-gray-50 p-4 rounded-lg border border-gray-100">
+                    <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5" />
+                    <div>
+                      <h4 className="text-sm font-bold text-[#0B1B42]">Industry Fit</h4>
+                      <p className="text-xs text-gray-500 mt-1">{aiBaseline.industry_fit}</p>
+                    </div>
+                  </div>
+                </div>
 
-             <div className="space-y-2">
-               <div className="flex justify-between items-end">
-                 <span className="text-xs font-bold text-gray-700 tracking-wider uppercase">Profile Precision</span>
-                 <span className="text-lg font-bold text-green-500">82%</span>
-               </div>
-               <div className="w-full bg-gray-100 rounded-full h-2">
-                 <div className="bg-green-500 h-2 rounded-full" style={{ width: '82%' }}></div>
-               </div>
-               <p className="text-xs text-gray-500 italic pt-1">Add more specific technical certifications to increase precision.</p>
-             </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-end">
+                    <span className="text-xs font-bold text-gray-700 tracking-wider uppercase">Profile Precision</span>
+                    <span className="text-lg font-bold text-green-500">{aiBaseline.precision}%</span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-2">
+                    <div className="bg-green-500 h-2 rounded-full" style={{ width: `${aiBaseline.precision}%` }}></div>
+                  </div>
+                  <p className="text-xs text-gray-500 italic pt-1">Profile adjusted based on your requirements.</p>
+                </div>
+               </>
+             ) : (
+                <div className="py-12 text-center text-gray-400 text-xs italic">
+                  Complete the "Details" and "Requirements" steps to generate the AI baseline profile.
+                </div>
+             )}
           </div>
 
           {/* Market Intelligence Widget */}
@@ -238,15 +285,15 @@ export default function CreateJob() {
                 <div className="space-y-4 mb-6">
                   <div className="flex justify-between items-center pb-3 border-b border-gray-100">
                     <span className="text-sm text-gray-500">Avg. Salary Range</span>
-                    <span className="text-sm font-bold text-[#0B1B42]">$140k - $190k</span>
+                    <span className="text-sm font-bold text-[#0B1B42]">{aiBaseline?.market_intelligence?.avg_salary || '$--'}</span>
                   </div>
                   <div className="flex justify-between items-center pb-3 border-b border-gray-100">
                     <span className="text-sm text-gray-500">Candidate Availability</span>
-                    <span className="text-xs font-bold bg-red-100 text-red-700 px-2 py-0.5 rounded uppercase">Low</span>
+                    <span className="text-xs font-bold bg-red-100 text-red-700 px-2 py-0.5 rounded uppercase">{aiBaseline?.market_intelligence?.availability || '--'}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-500">Time to Hire</span>
-                    <span className="text-sm font-bold text-[#0B1B42]">24 Days</span>
+                    <span className="text-sm font-bold text-[#0B1B42]">{aiBaseline?.market_intelligence?.time_to_hire || '--'}</span>
                   </div>
                 </div>
                 <button className="w-full py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors shadow-sm">View Full Report</button>
