@@ -5,6 +5,7 @@ import applicantsReducer from './slices/applicantsSlice';
 import notificationsReducer from './slices/notificationsSlice';
 import interviewsReducer from './slices/interviewsSlice';
 import auditReducer from './slices/auditSlice';
+import departmentsReducer from './slices/departmentsSlice';
 
 // Placeholder slice — will be replaced with real slices (jobs, applicants, screening)
 const appSlice = createSlice({
@@ -22,6 +23,7 @@ export const store = configureStore({
     notifications: notificationsReducer,
     interviews: interviewsReducer,
     audit: auditReducer,
+    departments: departmentsReducer,
   },
 });
 
