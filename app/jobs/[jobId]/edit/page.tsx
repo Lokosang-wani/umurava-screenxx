@@ -4,7 +4,10 @@ import { ArrowLeft, Sparkles, CheckCircle2, ChevronDown, X, Save } from 'lucide-
 import Link from 'next/link';
 import clsx from 'clsx';
 import { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { api } from '../../../../lib/api';
+import { fetchDepartments, createDepartment } from '../../../../store/slices/departmentsSlice';
+import { AppDispatch, RootState } from '../../../../store/store';
 
 export default function EditJobPage() {
   const params = useParams();
@@ -22,6 +25,15 @@ export default function EditJobPage() {
     description: '',
     priority: 'REGULAR'
   });
+  const [isDeptModalOpen, setIsDeptModalOpen] = useState(false);
+  const [newDeptName, setNewDeptName] = useState('');
+
+  const dispatch = useDispatch<AppDispatch>();
+  const { list: departmentsList } = useSelector((state: RootState) => state.departments);
+
+  useEffect(() => {
+    dispatch(fetchDepartments());
+  }, [dispatch]);
 
   useEffect(() => {
     const fetchJob = async () => {
@@ -57,6 +69,22 @@ export default function EditJobPage() {
 
   const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, 4));
   const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
+
+  const handleCreateDepartment = async () => {
+    if (!newDeptName.trim()) return;
+    try {
+      setIsLoading(true);
+      const newDept = await dispatch(createDepartment(newDeptName.trim())).unwrap();
+      setJobData(prev => ({ ...prev, department: newDept.name }));
+      setIsDeptModalOpen(false);
+      setNewDeptName('');
+    } catch (error) {
+      console.error('Failed to create department:', error);
+      alert('Failed to create department. It may already exist.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="bg-gray-50 min-h-screen pb-12">
@@ -111,17 +139,26 @@ export default function EditJobPage() {
                    </div>
                    <div>
                      <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Department</label>
-                     <div className="relative">
-                       <select 
-                         value={jobData.department}
-                         onChange={(e) => setJobData({...jobData, department: e.target.value})}
-                         className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm appearance-none focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                     <div className="flex space-x-2">
+                       <div className="relative flex-1">
+                         <select 
+                           value={jobData.department}
+                           onChange={(e) => setJobData({...jobData, department: e.target.value})}
+                           className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm appearance-none focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                         >
+                           {departmentsList.map(dept => (
+                             <option key={dept.id} value={dept.name}>{dept.name}</option>
+                           ))}
+                           {departmentsList.length === 0 && <option value="">Loading...</option>}
+                         </select>
+                         <ChevronDown className="w-4 h-4 text-gray-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                       </div>
+                       <button 
+                         onClick={() => setIsDeptModalOpen(true)}
+                         className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 font-semibold text-sm transition-colors border border-blue-100 whitespace-nowrap"
                        >
-                         <option value="Engineering">Engineering</option>
-                         <option value="Product">Product</option>
-                         <option value="Design">Design</option>
-                       </select>
-                       <ChevronDown className="w-4 h-4 text-gray-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                         + New
+                       </button>
                      </div>
                    </div>
                  </div>
@@ -269,6 +306,50 @@ export default function EditJobPage() {
           </div>
         </div>
       </div>
+
+      {/* Department Creation Modal */}
+      {isDeptModalOpen && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-[#0B1B42]">Add Department</h3>
+              <button onClick={() => setIsDeptModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Department Name</label>
+                <input 
+                  type="text" 
+                  value={newDeptName}
+                  onChange={(e) => setNewDeptName(e.target.value)}
+                  placeholder="e.g. Data Science" 
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
+                  autoFocus
+                />
+              </div>
+              
+              <div className="flex justify-end space-x-3 mt-8">
+                <button 
+                  onClick={() => setIsDeptModalOpen(false)}
+                  className="px-5 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleCreateDepartment}
+                  disabled={!newDeptName.trim() || isLoading}
+                  className="px-5 py-2.5 text-sm font-bold bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50"
+                >
+                  {isLoading ? 'Saving...' : 'Save Department'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
