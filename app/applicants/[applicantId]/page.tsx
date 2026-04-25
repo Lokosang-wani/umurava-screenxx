@@ -15,6 +15,14 @@ export default function CandidateProfilePage() {
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [scheduleSuccess, setScheduleSuccess] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [interviewTypes, setInterviewTypes] = useState<any[]>([]);
+  const [scheduleData, setScheduleData] = useState({
+    interviewTypeId: '',
+    date: '',
+    time: '',
+    meetUrl: '',
+    message: ''
+  });
 
   useEffect(() => {
     const fetchApplicant = async () => {
@@ -25,14 +33,29 @@ export default function CandidateProfilePage() {
         console.error('Failed to fetch applicant details:', err);
       }
     };
-    if (applicantId) fetchApplicant();
+    const fetchInterviewTypes = async () => {
+      try {
+        const response = await api.get('/interviews/types');
+        setInterviewTypes(response.data.data.types);
+        if (response.data.data.types.length > 0) {
+          setScheduleData(prev => ({ ...prev, interviewTypeId: response.data.data.types[0].id }));
+        }
+      } catch (err) {
+        console.error('Failed to fetch interview types:', err);
+      }
+    };
+    if (applicantId) {
+      fetchApplicant();
+      fetchInterviewTypes();
+    }
   }, [applicantId]);
 
   const handleTriggerAnalysis = async () => {
     try {
       setIsAnalyzing(true);
-      const response = await api.post(`/applicants/${applicantId}/analyze`);
-      setApplicant(response.data.data.analysis); // analysis returned is the updated applicant
+      await api.post(`/applicants/${applicantId}/analyze`);
+      const response = await api.get(`/applicants/${applicantId}`);
+      setApplicant(response.data.data.applicant);
       alert('AI Analysis Complete!');
     } catch (err) {
       console.error('AI Analysis failed:', err);
@@ -42,13 +65,34 @@ export default function CandidateProfilePage() {
     }
   };
 
-  const handleSchedule = (e: React.FormEvent) => {
+  const handleSchedule = async (e: React.FormEvent) => {
     e.preventDefault();
-    setScheduleSuccess(true);
-    setTimeout(() => {
-      setIsScheduleModalOpen(false);
-      setScheduleSuccess(false);
-    }, 2000);
+    try {
+      // Calculate endTime from the selected interview type's duration
+      const selectedType = interviewTypes.find(t => t.id === scheduleData.interviewTypeId);
+      const durationMinutes = selectedType?.duration_minutes || 60;
+      const [hours, minutes] = scheduleData.time.split(':').map(Number);
+      const endDate = new Date();
+      endDate.setHours(hours, minutes + durationMinutes, 0);
+      const endTime = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}:00`;
+
+      await api.post('/interviews', {
+        applicantId,
+        interviewTypeId: scheduleData.interviewTypeId,
+        scheduledDate: scheduleData.date,
+        startTime: `${scheduleData.time}:00`,
+        endTime,
+        meetUrl: scheduleData.meetUrl
+      });
+      setScheduleSuccess(true);
+      setTimeout(() => {
+        setIsScheduleModalOpen(false);
+        setScheduleSuccess(false);
+      }, 2000);
+    } catch (err) {
+      console.error('Failed to schedule interview:', err);
+      alert('Failed to schedule interview');
+    }
   };
 
   return (
@@ -147,14 +191,19 @@ export default function CandidateProfilePage() {
                   <Mail className="w-4 h-4 text-gray-400 mr-3" /> {applicant?.email}
                 </div>
                 <div className="flex items-center text-sm text-gray-700">
-                  <Phone className="w-4 h-4 text-gray-400 mr-3" /> +1 (555) 019-2834
+                  <Phone className="w-4 h-4 text-gray-400 mr-3" /> {applicant?.phone || 'Not provided'}
                 </div>
                 <div className="flex items-center text-sm text-gray-700">
-                  <MapPin className="w-4 h-4 text-gray-400 mr-3" /> San Francisco, CA (Remote)
+                  <MapPin className="w-4 h-4 text-gray-400 mr-3" /> {applicant?.location || 'Not provided'}
                 </div>
-                <div className="flex items-center text-sm text-blue-600 hover:underline cursor-pointer pt-2">
-                  <LinkIcon className="w-4 h-4 mr-3" /> linkedin.com/in/aristhorne
-                </div>
+                {applicant?.linkedin_url && (
+                  <div className="flex items-center text-sm text-blue-600 hover:underline cursor-pointer pt-2">
+                    <LinkIcon className="w-4 h-4 mr-3" /> 
+                    <a href={applicant.linkedin_url} target="_blank" rel="noopener noreferrer">
+                      {applicant.linkedin_url.replace('https://www.', '')}
+                    </a>
+                  </div>
+                )}
              </div>
           </div>
         </div>
@@ -164,9 +213,15 @@ export default function CandidateProfilePage() {
           <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
             <div className="flex justify-between items-center mb-8 border-b border-gray-100 pb-4">
                <h2 className="text-xl font-bold text-[#0B1B42]">Parsed Resume Data</h2>
-               <button className="text-sm font-medium text-blue-600 flex items-center hover:underline">
-                 <Download className="w-4 h-4 mr-1" /> View Original PDF
-               </button>
+               {applicant?.resume_url ? (
+                 <a href={applicant.resume_url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-blue-600 flex items-center hover:underline">
+                   <Download className="w-4 h-4 mr-1" /> View Original PDF
+                 </a>
+               ) : (
+                 <span className="text-sm font-medium text-gray-400 flex items-center">
+                   No resume uploaded
+                 </span>
+               )}
             </div>
 
             <div className="space-y-8">
@@ -177,30 +232,20 @@ export default function CandidateProfilePage() {
                    <span>Experience</span>
                  </div>
                  
-                 {/* For now, we use a mock check. In reality, this would be applicant.experience */}
-                 {true ? ( 
+                 {applicant?.ai_analysis && applicant.ai_analysis.length > 0 ? ( 
                    <div className="space-y-6 pl-2 border-l-2 border-blue-100 ml-2">
                       <div className="relative pl-6">
                         <div className="absolute w-3 h-3 bg-blue-500 rounded-full -left-[7px] top-1.5 ring-4 ring-white"></div>
-                        <h3 className="font-bold text-[#0B1B42]">Senior ML Infrastructure Engineer</h3>
-                        <p className="text-sm text-gray-500 font-medium">DeepMind • 2021 - Present</p>
+                        <h3 className="font-bold text-[#0B1B42]">Structured Data Pending</h3>
+                        <p className="text-sm text-gray-500 font-medium">Currently using Gemini Flash for generic analysis.</p>
                         <p className="text-sm text-gray-700 mt-2 leading-relaxed">
-                          Led a team of 5 engineers to scale distributed training infrastructure for LLMs. Reduced model training time by 40% using custom PyTorch optimizations and Kubernetes scaling logic.
-                        </p>
-                      </div>
-
-                      <div className="relative pl-6">
-                        <div className="absolute w-3 h-3 bg-gray-300 rounded-full -left-[7px] top-1.5 ring-4 ring-white"></div>
-                        <h3 className="font-bold text-[#0B1B42]">Research Engineer</h3>
-                        <p className="text-sm text-gray-500 font-medium">OpenAI • 2018 - 2021</p>
-                        <p className="text-sm text-gray-700 mt-2 leading-relaxed">
-                          Developed data pipeline architecture for early GPT models. Contributed to core inference optimization libraries.
+                          Full resume parsing capability will extract structured work experience here.
                         </p>
                       </div>
                    </div>
                  ) : (
                    <div className="bg-gray-50 border border-dashed border-gray-200 rounded-xl p-8 text-center ml-2">
-                     <p className="text-sm text-gray-400">No work experience extracted from resume.</p>
+                     <p className="text-sm text-gray-400">Run AI Analysis to extract insights.</p>
                    </div>
                  )}
                </div>
@@ -212,14 +257,12 @@ export default function CandidateProfilePage() {
                    <span>Education</span>
                  </div>
                  
-                 {/* Mock check for education */}
-                 {true ? (
+                 {applicant?.ai_analysis && applicant.ai_analysis.length > 0 ? (
                    <div className="space-y-4 pl-2 border-l-2 border-blue-100 ml-2">
                       <div className="relative pl-6">
                         <div className="absolute w-3 h-3 bg-gray-300 rounded-full -left-[7px] top-1.5 ring-4 ring-white"></div>
-                        <h3 className="font-bold text-[#0B1B42]">Ph.D. Computer Science</h3>
-                        <p className="text-sm text-gray-500 font-medium">Stanford University • 2014 - 2018</p>
-                        <p className="text-sm text-gray-700 mt-1">Focus on Distributed Systems and Machine Learning.</p>
+                        <h3 className="font-bold text-[#0B1B42]">Degree Info Pending</h3>
+                        <p className="text-sm text-gray-700 mt-1">Full extraction capability required.</p>
                       </div>
                    </div>
                  ) : (
@@ -260,10 +303,16 @@ export default function CandidateProfilePage() {
               <form onSubmit={handleSchedule} className="p-6 space-y-5">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Interview Type</label>
-                  <select className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
-                    <option>Technical Screen (45m)</option>
-                    <option>Initial Culture Fit (30m)</option>
-                    <option>System Design (60m)</option>
+                  <select 
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                    value={scheduleData.interviewTypeId}
+                    onChange={(e) => setScheduleData({...scheduleData, interviewTypeId: e.target.value})}
+                    required
+                  >
+                    <option value="">Select a type...</option>
+                    {interviewTypes.map(type => (
+                      <option key={type.id} value={type.id}>{type.name} ({type.duration_minutes}m)</option>
+                    ))}
                   </select>
                 </div>
                 
@@ -274,7 +323,13 @@ export default function CandidateProfilePage() {
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <Calendar className="h-4 w-4 text-gray-400" />
                       </div>
-                      <input type="date" className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" required />
+                      <input 
+                        type="date" 
+                        className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
+                        value={scheduleData.date}
+                        onChange={(e) => setScheduleData({...scheduleData, date: e.target.value})}
+                        required 
+                      />
                     </div>
                   </div>
                   <div>
@@ -283,14 +338,15 @@ export default function CandidateProfilePage() {
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <Clock className="h-4 w-4 text-gray-400" />
                       </div>
-                      <input type="time" className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" required />
+                      <input 
+                        type="time" 
+                        className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
+                        value={scheduleData.time}
+                        onChange={(e) => setScheduleData({...scheduleData, time: e.target.value})}
+                        required 
+                      />
                     </div>
                   </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Interviewers</label>
-                  <input type="text" defaultValue="Alex Thompson, Sarah Jenkins" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
                 </div>
 
                 <div>
@@ -303,6 +359,9 @@ export default function CandidateProfilePage() {
                       type="url" 
                       placeholder="https://meet.google.com/xxx-xxxx-xxx" 
                       className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
+                      value={scheduleData.meetUrl}
+                      onChange={(e) => setScheduleData({...scheduleData, meetUrl: e.target.value})}
+                      required
                     />
                   </div>
                 </div>
@@ -311,8 +370,9 @@ export default function CandidateProfilePage() {
                   <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Message to Candidate</label>
                   <textarea 
                     rows={3} 
-                    defaultValue="Hi Aris, we were really impressed by your background in scaling LLM infrastructure and would love to chat further." 
                     className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                    value={scheduleData.message}
+                    onChange={(e) => setScheduleData({...scheduleData, message: e.target.value})}
                   ></textarea>
                 </div>
 

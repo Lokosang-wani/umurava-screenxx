@@ -6,10 +6,14 @@ export interface Applicant {
   job_id: string;
   name: string;
   email: string;
+  phone?: string;
+  linkedin_url?: string;
+  location?: string;
+  resume_url?: string;
   status: string;
   match_score: number | null;
   applied_at: string;
-  jobs?: { title: string };
+  jobs?: { title: string; organization_id?: string };
   ai_analysis?: any[];
 }
 

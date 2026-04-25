@@ -8,16 +8,33 @@ import { api } from '@/lib/api';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '@/store/store';
 import { fetchApplicants } from '@/store/slices/applicantsSlice';
+import { fetchJobs } from '@/store/slices/jobsSlice';
 
 export default function IngestApplicants() {
   const dispatch = useDispatch<AppDispatch>();
   const { list: jobs } = useSelector((state: RootState) => state.jobs);
   const [activeUploads, setActiveUploads] = useState<any[]>([]);
+  const [selectedJobId, setSelectedJobId] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // Ensure jobs are loaded for the selector
+    dispatch(fetchJobs());
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (jobs.length > 0 && !selectedJobId) {
+      setSelectedJobId(jobs[0].id);
+    }
+  }, [jobs]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
+    if (!selectedJobId) {
+      alert('Please select a job first');
+      return;
+    }
 
     const file = files[0];
     const newUpload = {
@@ -25,44 +42,49 @@ export default function IngestApplicants() {
       name: file.name,
       progress: 0,
       status: 'Processing',
-      candidates: Math.floor(Math.random() * 50) + 1,
+      candidates: 1, // Currently parsing 1 candidate per file
       startTime: new Date()
     };
 
     setActiveUploads(prev => [newUpload, ...prev]);
 
-    // Simulate AI Screening Progress
-    let progress = 0;
-    const interval = setInterval(async () => {
-      progress += Math.floor(Math.random() * 15) + 5;
-      if (progress >= 100) {
-        progress = 100;
-        clearInterval(interval);
-        
-        // Finalize with real backend call
-        try {
-          await api.post('/applicants/ingest', {
-            jobId: jobs[0]?.id || '', // Default to first job for demo
-            name: file.name.split('.')[0],
-            email: `${file.name.split('.')[0].toLowerCase()}@example.com`,
-            resumeUrl: `https://storage.screenerx.ai/${file.name}`
-          });
-          
-          setActiveUploads(prev => prev.map(u => 
-            u.id === newUpload.id ? { ...u, progress: 100, status: 'Completed' } : u
-          ));
-          dispatch(fetchApplicants());
-        } catch (error) {
-          setActiveUploads(prev => prev.map(u => 
-            u.id === newUpload.id ? { ...u, status: 'Error' } : u
-          ));
-        }
-      } else {
-        setActiveUploads(prev => prev.map(u => 
-          u.id === newUpload.id ? { ...u, progress } : u
-        ));
-      }
-    }, 800);
+    try {
+      // 1. Upload to Supabase Storage via our backend
+      const formData = new FormData();
+      formData.append('resume', file);
+      
+      setActiveUploads(prev => prev.map(u => u.id === newUpload.id ? { ...u, progress: 40 } : u));
+      
+      const uploadResponse = await api.post('/upload/resume', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      const resumeUrl = uploadResponse.data.data.resumeUrl;
+      setActiveUploads(prev => prev.map(u => u.id === newUpload.id ? { ...u, progress: 80 } : u));
+      
+      // 2. Ingest Applicant
+      await api.post('/applicants/ingest', {
+        jobId: selectedJobId,
+        name: file.name.replace(/\.[^/.]+$/, ""), // Use filename without extension as fallback name
+        email: `${file.name.replace(/\.[^/.]+$/, "").replace(/\s+/g, '').toLowerCase()}@example.com`,
+        resumeUrl: resumeUrl
+      });
+      
+      setActiveUploads(prev => prev.map(u => 
+        u.id === newUpload.id ? { ...u, progress: 100, status: 'Completed' } : u
+      ));
+      dispatch(fetchApplicants());
+    } catch (error) {
+      console.error('Upload failed:', error);
+      setActiveUploads(prev => prev.map(u => 
+        u.id === newUpload.id ? { ...u, status: 'Error' } : u
+      ));
+    }
+    
+    // Clear input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   return (
@@ -92,6 +114,21 @@ export default function IngestApplicants() {
                  <Sparkles className="w-3 h-3 mr-1" />
                  AI Enhanced Parsing
                </span>
+             </div>
+
+             {/* Target Job Selector */}
+             <div className="mb-6">
+                <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Target Job Posting</label>
+                <select 
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                  value={selectedJobId}
+                  onChange={(e) => setSelectedJobId(e.target.value)}
+                >
+                  <option value="" disabled>Select a job...</option>
+                  {jobs.map(job => (
+                    <option key={job.id} value={job.id}>{job.title}</option>
+                  ))}
+                </select>
              </div>
 
              {/* Import Options */}
@@ -168,7 +205,7 @@ export default function IngestApplicants() {
                     <p className="text-xs text-gray-500 mt-1">Supported formats: .pdf, .docx, .csv, .xlsx (Max 50MB per file)</p>
                   </div>
                 </div>
-                <button className="px-6 py-2.5 bg-[#0B1B42] text-white rounded-lg text-sm font-medium hover:bg-blue-900 transition-colors shadow-sm whitespace-nowrap">
+                <button onClick={() => fileInputRef.current?.click()} className="px-6 py-2.5 bg-[#0B1B42] text-white rounded-lg text-sm font-medium hover:bg-blue-900 transition-colors shadow-sm whitespace-nowrap">
                   Browse Files
                 </button>
              </div>

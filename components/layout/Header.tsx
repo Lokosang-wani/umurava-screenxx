@@ -1,11 +1,23 @@
 'use client';
 import { Bell, Settings, Search, ChevronDown, User as UserIcon } from 'lucide-react';
 import Link from 'next/link';
-import { useSelector } from 'react-redux';
-import { RootState } from '../../store/store';
+import { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState, AppDispatch } from '../../store/store';
+import { fetchNotifications } from '../../store/slices/notificationsSlice';
 
 export default function Header() {
+  const dispatch = useDispatch<AppDispatch>();
   const { user, isLoading } = useSelector((state: RootState) => state.auth);
+  const { list: notifications } = useSelector((state: RootState) => state.notifications);
+
+  useEffect(() => {
+    if (user) {
+      dispatch(fetchNotifications());
+    }
+  }, [user, dispatch]);
+
+  const hasUnread = notifications.some(n => !n.is_read);
 
   return (
     <header className="h-20 border-b border-gray-100 bg-white/80 backdrop-blur-md flex items-center justify-between px-8 fixed top-0 right-0 left-64 z-30">
@@ -24,7 +36,9 @@ export default function Header() {
         <div className="flex items-center space-x-2 pr-4 border-r border-gray-100">
           <Link href="/notifications" className="w-10 h-10 flex items-center justify-center rounded-xl text-gray-500 hover:bg-gray-50 transition-all relative">
             <Bell className="h-5 w-5" />
-            <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+            {hasUnread && (
+              <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+            )}
           </Link>
           <Link href="/settings" className="w-10 h-10 flex items-center justify-center rounded-xl text-gray-500 hover:bg-gray-50 transition-all">
             <Settings className="h-5 w-5" />

@@ -13,6 +13,7 @@ export default function CreateJob() {
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
   const [techSkills, setTechSkills] = useState(['Python', 'PyTorch', 'LLMs']);
+  const [skillInput, setSkillInput] = useState('');
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [aiBaseline, setAiBaseline] = useState<any>(null);
@@ -21,6 +22,7 @@ export default function CreateJob() {
     department: 'Engineering',
     location: 'Remote',
     priority: 'REGULAR',
+    description: '',
     is_public: true
   });
 
@@ -45,7 +47,7 @@ export default function CreateJob() {
   const handlePublish = async () => {
     try {
       setIsLoading(true);
-      await api.post('/jobs', jobData);
+      await api.post('/jobs', { ...jobData, is_public: true });
       dispatch(fetchJobs());
       router.push('/jobs');
     } catch (error) {
@@ -54,6 +56,38 @@ export default function CreateJob() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSaveDraft = async () => {
+    try {
+      if (!jobData.title) {
+        alert('Please enter a job title before saving as draft.');
+        return;
+      }
+      setIsLoading(true);
+      await api.post('/jobs', { ...jobData, is_public: false });
+      dispatch(fetchJobs());
+      router.push('/jobs');
+    } catch (error) {
+      console.error('Failed to save draft:', error);
+      alert('Failed to save draft');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAddSkill = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && skillInput.trim()) {
+       e.preventDefault();
+       if (!techSkills.includes(skillInput.trim())) {
+         setTechSkills([...techSkills, skillInput.trim()]);
+       }
+       setSkillInput('');
+    }
+  };
+
+  const handleRemoveSkill = (skill: string) => {
+     setTechSkills(techSkills.filter(s => s !== skill));
   };
 
   return (
@@ -115,10 +149,33 @@ export default function CreateJob() {
                       </div>
                     </div>
                  </div>
+
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Priority</label>
+                      <div className="relative">
+                        <select 
+                          value={jobData.priority}
+                          onChange={(e) => setJobData({...jobData, priority: e.target.value as 'REGULAR' | 'HIGH'})}
+                          className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm appearance-none focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                        >
+                          <option value="REGULAR">Regular</option>
+                          <option value="HIGH">High Priority</option>
+                        </select>
+                        <ChevronDown className="w-4 h-4 text-gray-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      </div>
+                    </div>
+                 </div>
                  
                  <div>
                    <label className="block text-xs font-bold text-gray-700 tracking-wider mb-2 uppercase">Role Description</label>
-                   <textarea rows={4} placeholder="Briefly describe the mission of this role..." className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"></textarea>
+                   <textarea 
+                     rows={4} 
+                     value={jobData.description}
+                     onChange={(e) => setJobData({...jobData, description: e.target.value})}
+                     placeholder="Briefly describe the mission of this role..." 
+                     className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                   ></textarea>
                  </div>
                </div>
              )}
@@ -150,12 +207,19 @@ export default function CreateJob() {
                    <div className="flex flex-wrap gap-2 mb-3">
                      {techSkills.map(skill => (
                        <span key={skill} className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium bg-blue-50 text-blue-700 border border-blue-100">
-                         {skill}
-                         <button className="ml-2 text-blue-400 hover:text-blue-600"><X className="w-3 h-3" /></button>
-                       </span>
-                     ))}
-                   </div>
-                   <input type="text" placeholder="Add a skill and press Enter..." className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                          {skill}
+                          <button onClick={() => handleRemoveSkill(skill)} type="button" className="ml-2 text-blue-400 hover:text-blue-600"><X className="w-3 h-3" /></button>
+                        </span>
+                      ))}
+                    </div>
+                    <input 
+                      type="text" 
+                      value={skillInput}
+                      onChange={(e) => setSkillInput(e.target.value)}
+                      onKeyDown={handleAddSkill}
+                      placeholder="Add a skill and press Enter..." 
+                      className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
+                    />
                  </div>
                </div>
              )}
@@ -199,7 +263,7 @@ export default function CreateJob() {
                   <button onClick={prevStep} className="px-6 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 border border-gray-200 rounded-lg transition-colors">Back</button>
                 ) : <div></div>}
                 <div className="flex space-x-4">
-                  <button className="px-6 py-2.5 text-sm font-medium text-[#0B1B42] hover:bg-gray-50 rounded-lg transition-colors">Save Draft</button>
+                  <button onClick={handleSaveDraft} disabled={isLoading} className="px-6 py-2.5 text-sm font-medium text-[#0B1B42] hover:bg-gray-50 rounded-lg transition-colors">Save Draft</button>
                   {currentStep < 4 ? (
                     <button onClick={nextStep} disabled={isLoading} className="px-6 py-2.5 text-sm font-medium bg-[#0B1B42] text-white rounded-lg hover:bg-blue-900 transition-colors shadow-sm disabled:opacity-70">
                       {isLoading ? 'Generating AI Profile...' : (currentStep === 1 ? 'Continue to Requirements' : 'Continue to AI Setup')}
